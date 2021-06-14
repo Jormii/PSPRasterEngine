@@ -2,6 +2,13 @@
 
 #include <stdio.h>
 
+void vector4f_divide_by_w(const Vector4f *v, Vector3f *out)
+{
+    out->x = v->x / v->w;
+    out->y = v->y / v->w;
+    out->z = v->z / v->w;
+}
+
 float_psp vector4f_dot(const Vector4f *a, const Vector4f *b)
 {
     return (a->x * b->x) + (a->y * b->y) + (a->z * b->z) + (a->w * b->w);

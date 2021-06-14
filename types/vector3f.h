@@ -10,4 +10,18 @@ typedef struct Vector3f_t
     float_psp z;
 } Vector3f;
 
+float_psp vector3f_magnitude(const Vector3f *v);
+float_psp vector3f_square_magnitude(const Vector3f *v);
+void vector3f_normalize(Vector3f *v);
+void vector3f_normalized(const Vector3f *v, Vector3f *normal);
+
+float_psp vector3f_dot(const Vector3f *a, const Vector3f *b);
+void vector3f_cross(const Vector3f *a, const Vector3f *b, Vector3f *result);
+
+void vector3f_add(const Vector3f *a, const Vector3f *b, Vector3f *result);
+void vector3f_substract(const Vector3f *a, const Vector3f *b, Vector3f *result);
+void vector3f_divide_scalar(const Vector3f *v, float_psp scalar, Vector3f *result);
+
+void vector3f_print(const Vector3f *v);
+
 #endif

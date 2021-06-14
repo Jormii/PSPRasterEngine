@@ -19,11 +19,12 @@ typedef struct VertexShaderIn_t
 
 typedef struct VertexShaderOut_t
 {
-    Vector4f view_coord;
     Vector4f clip_coord;
     RGBA color;
 } VertexShaderOut;
 
 typedef void (*VertexShader)(const VertexShaderIn *input, VertexShaderOut *output);
+
+void vs_out_print(VertexShaderOut *vs_out);
 
 #endif
