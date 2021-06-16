@@ -12,7 +12,7 @@ typedef struct Vector4f_t
     float_psp w;
 } Vector4f;
 
-void vector4f_divide_by_w(const Vector4f *v, Vector3f *out);
+Vector3f vector4f_divide_by_w(const Vector4f *v);
 
 float_psp vector4f_dot(const Vector4f *a, const Vector4f *b);
 

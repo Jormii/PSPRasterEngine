@@ -18,6 +18,13 @@ Vector3f *vector3f_normalize(Vector3f *v)
     return v;
 }
 
+Vector3f vector3f_normalized(const Vector3f *v)
+{
+    Vector3f copy = {v->x, v->y, v->z};
+    vector3f_normalize(&copy);
+    return copy;
+}
+
 float_psp vector3f_dot(const Vector3f *a, const Vector3f *b)
 {
     return a->x * b->x + a->y * b->y + a->z * b->z;

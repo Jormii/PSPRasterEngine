@@ -12,6 +12,7 @@ typedef struct Vector3f_t
 
 float_psp vector3f_magnitude(const Vector3f *v);
 Vector3f *vector3f_normalize(Vector3f *v);
+Vector3f vector3f_normalized(const Vector3f *v);
 
 float_psp vector3f_dot(const Vector3f *a, const Vector3f *b);
 Vector3f vector3f_cross(const Vector3f *a, const Vector3f *b);
