@@ -12,8 +12,8 @@ typedef struct Matrix4f_t
     Vector4f r4;
 } Matrix4f;
 
-void matrix4f_vector_mult(const Matrix4f *m, const Vector4f *v, Vector4f *result);
-void matrix4f_matrix_mult(const Matrix4f *a, const Matrix4f *b, Matrix4f *result);
+Matrix4f matrix4f_vector_mult(const Matrix4f *m, const Vector4f *v);
+Matrix4f matrix4f_matrix_mult(const Matrix4f *a, const Matrix4f *b);
 
 void matrix4f_print(const Matrix4f *m);
 

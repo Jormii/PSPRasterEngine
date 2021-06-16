@@ -6,4 +6,6 @@ typedef unsigned int uint_psp;
 typedef unsigned char uint8_psp;
 typedef float float_psp;
 
+typedef uint8_psp bool_psp;
+
 #endif
