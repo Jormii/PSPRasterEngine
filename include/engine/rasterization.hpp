@@ -11,7 +11,7 @@
 #include "vec3f.hpp"
 
 std::vector<Fragment> Rasterize(const Mesh &clippingOut, size_t width, size_t height);
-std::vector<Fragment> RasterizeTriangle(size_t a, size_t b, size_t c, const Mesh &mesh, size_t width, size_t height);
+std::vector<Fragment> RasterizeTriangle(int_psp a, int_psp b, int_psp c, const Mesh &mesh, size_t width, size_t height);
 Vec3f BarycentricCoordinates(const Vec2i &p, const Vec2i &a, const Vec2i &b, const Vec2i &c);
 Vec2i VertexPixel(const Vec3f &p, size_t width, size_t height);
 

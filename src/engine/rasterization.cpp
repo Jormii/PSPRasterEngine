@@ -7,9 +7,9 @@ std::vector<Fragment> Rasterize(const Mesh &clippingOut, size_t width, size_t he
     std::vector<Fragment> fragments;
     for (const Vec3i &tri : clippingOut.triangles)
     {
-        size_t a{tri.x};
-        size_t b{tri.y};
-        size_t c{tri.z};
+        int_psp a{tri.x};
+        int_psp b{tri.y};
+        int_psp c{tri.z};
 
         std::vector<Fragment> triangleFragments{RasterizeTriangle(a, b, c, clippingOut, width, height)};
         fragments.insert(fragments.end(), triangleFragments.begin(), triangleFragments.end());
@@ -18,7 +18,7 @@ std::vector<Fragment> Rasterize(const Mesh &clippingOut, size_t width, size_t he
     return fragments;
 }
 
-std::vector<Fragment> RasterizeTriangle(size_t a, size_t b, size_t c, const Mesh &mesh, size_t width, size_t height)
+std::vector<Fragment> RasterizeTriangle(int_psp a, int_psp b, int_psp c, const Mesh &mesh, size_t width, size_t height)
 {
     Vec3f av{mesh.vertices[a]};
     Vec3f bv{mesh.vertices[b]};

@@ -60,7 +60,7 @@ Mesh Clip(const Mesh &mesh, std::vector<VSOut> vertexShadingOut, const std::vect
     return outMesh;
 }
 
-Mesh ClipTriangle(size_t a, size_t b, size_t c, const Mesh &mesh, std::vector<VSOut> vertexShadingOut)
+Mesh ClipTriangle(int_psp a, int_psp b, int_psp c, const Mesh &mesh, std::vector<VSOut> vertexShadingOut)
 {
     // Sutherland–Hodgman algorithm
     std::vector<Vec3f> outputVertices{

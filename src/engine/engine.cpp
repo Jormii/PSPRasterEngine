@@ -19,9 +19,6 @@ struct EngineContext
 
     RGBA *colorBuffer;
     float_psp *depthBuffer;
-
-    RGBA clearColorBuffer{0, 0, 0, 255};
-    float_psp clearDepthBuffer{9999.9f};
 } context;
 
 RenderVars::RenderVars(const Mat4f &model, const Mat4f &view, const Mat4f &projection, VertexShader vs, FragmentShader fs)
@@ -92,7 +89,8 @@ void Render(const Mesh &mesh, const RenderVars &vars)
     FSIn fsIn;
     for (const Fragment &fragment : fragments)
     {
-        fsIn.pixel = Vec2i{fragment.xScreenCoord, fragment.yScreenCoord};
+        fsIn.pixel.x = fragment.xScreenCoord;
+        fsIn.pixel.y = fragment.yScreenCoord;
         fsIn.depth = fragment.depth;
 
         FSOut fsOut{vars.fs(fsIn)};
