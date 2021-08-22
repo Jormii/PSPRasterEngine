@@ -1,10 +1,6 @@
-*CMakeLists.txt
-
 **/_Ignore/
 **/.vscode/
 **/build/
-*.o
-
-# TODO: Remove
-**/engine_cpp/
 **/build_cpp/
+
+*.o
