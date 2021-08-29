@@ -3,12 +3,12 @@
 ###
 # MODIFY THESE
 ###
-MAIN_FILE="../../_Ignore/main.cpp"
+MAIN_FILE="./main.cpp"
 OUTPUT_FILENAME="./Engine"
 
 COMPILE_FLAGS="-Wall -O2"
-HEADER_DIR="../../include/"
-SOURCE_DIR="../../src/"
+HEADER_DIR="./include/"
+SOURCE_DIR="./src/"
 
 ###
 # Compile engine
@@ -41,5 +41,3 @@ echo Linking...
 OBJECT_FILES=$(find . -name \*.o)
 echo $OBJECT_FILES
 g++ -o $OUTPUT_FILENAME $MAIN_FILE $OBJECT_FILES $COMPILE_FLAGS $INCLUDE_PATHS
-
-PSPSDK=$(psp-config --pspsdk-path)
