@@ -1,6 +1,8 @@
 #ifndef VERTEX_SHADING_HPP
 #define VERTEX_SHADING_HPP
 
+#include "engine.hpp"
+
 #include "vec3f.hpp"
 #include "vec4f.hpp"
 #include "mat4f.hpp"
@@ -8,22 +10,20 @@
 struct VSIn
 {
     Vec3f vertex;
-    const Mat4f &model;
-    const Mat4f &view;
-    const Mat4f &projection;
-    const Mat4f modelView;
-    const Mat4f modelViewProj;
+    RGBA color;
+    const DrawMatrices &matrices;
 
-    VSIn(const Mat4f &model, const Mat4f &view, const Mat4f &proj);
+    VSIn(const DrawMatrices &matrices);
 };
 
 struct VSOut
 {
-    Vec4f vertexMVP;
-    Vec4f vertexHomo;
-    Vec3f vertexPerspDiv;
+    Vec3f perspectiveDivide;
+    Vec4f vertexTransformed;
+    RGBA vertexColor;
 
-    VSOut(const Vec4f &vertexMVP, const Vec4f &vertexHomo);
+    VSOut();
+    VSOut(const Vec4f &vertexTransformed, const RGBA &color);
 };
 
 typedef VSOut (*VertexShader)(const VSIn &input);

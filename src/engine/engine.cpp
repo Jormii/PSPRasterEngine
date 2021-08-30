@@ -1,13 +1,9 @@
 #include "engine.hpp"
 
-#include "vertex_shading.hpp"
 #include "culling.hpp"
 #include "clipping.hpp"
 #include "fragment.hpp"
 #include "rasterization.hpp"
-
-#include "types.hpp"
-#include "rgba.hpp"
 
 struct EngineContext
 {
@@ -21,8 +17,8 @@ struct EngineContext
     float_psp *depthBuffer;
 } context;
 
-RenderVars::RenderVars(const Mat4f &model, const Mat4f &view, const Mat4f &projection, VertexShader vs, FragmentShader fs)
-    : model{model}, view{view}, projection{projection}, vs{vs}, fs{fs}
+DrawMatrices::DrawMatrices(const Mat4f &model, const Mat4f &view, const Mat4f &projection)
+    : model{model}, view{view}, projection{projection}, mvp{projection * view * model}
 {
 }
 
@@ -64,16 +60,19 @@ void ClearDepthBuffer(float_psp depth)
     }
 }
 
-void Render(const Mesh &mesh, const RenderVars &vars)
+void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, FragmentShader fs)
 {
     // Vertex shading
-    std::vector<VSOut> vsOut;
-    VSIn vsIn{vars.model, vars.view, vars.projection};
+    VSOut *vsOut{new VSOut[mesh.vertexCount]};
+    VSIn vsIn{matrices};
 
-    for (const Vec3f &vertex : mesh.vertices)
+    for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
-        vsIn.vertex = vertex;
-        vsOut.push_back(vars.vs(vsIn));
+        const VertexData *vertexData{mesh.vertexData + i};
+        vsIn.vertex = vertexData->position;
+        vsIn.color = vertexData->color;
+
+        vsOut[i] = vs(vsIn);
     }
 
     // Backface culling
@@ -107,7 +106,7 @@ void Render(const Mesh &mesh, const RenderVars &vars)
 }
 
 #ifndef PSP
-void DrawToConsole()
+void RenderToConsole()
 {
     for (size_t i{0}; i < context.viewportWidth; ++i)
     {

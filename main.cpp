@@ -9,11 +9,11 @@
 
 // #define REDIRECT
 #ifdef REDIRECT
-constexpr int_psp WIDTH{140};
-constexpr int_psp HEIGHT{35};
+constexpr size_t WIDTH{140};
+constexpr size_t HEIGHT{35};
 #else
-constexpr int_psp WIDTH{48};
-constexpr int_psp HEIGHT{24};
+constexpr size_t WIDTH{48};
+constexpr size_t HEIGHT{24};
 #endif
 
 VSOut CustomVertexShader(const VSIn &vsIn)
@@ -33,7 +33,7 @@ int main()
 {
     InitializeContext(WIDTH, HEIGHT);
 
-    // Create render variables
+    // Set up matrices
     float_psp angle{0.25 * M_PI};
     float_psp distance{3.5f};
     float_psp cameraX{distance * cosf(angle)};
@@ -45,20 +45,16 @@ int main()
         Vec3f{0.0f, 0.0f, 0.0f},
         Vec3f{0.0f, 1.0f, 0.0f})};
     Mat4f projection{PerspectiveProjFov(WIDTH, HEIGHT, 60.0f * (M_PI / 180), 1.0f, 10.0f)};
-    // Mat4f projection{OrthographicProj(-2.0f, 2.0f, -2.0f, 2.0f, 1.0f, 10.0f)};
-    RenderVars renderVars{
-        model,
-        view,
-        projection,
-        &CustomVertexShader,
-        &CustomFragmentShader};
+
+    DrawMatrices matrices{model, view, projection};
+
+    // Draw call
+    ClearColorBuffer(RGBA{0, 0, 0, 255}); // Black
+    ClearDepthBuffer(9999.0f);
+    Draw(tetraMesh, matrices, &CustomVertexShader, &CustomFragmentShader);
 
     // Render
-    ClearColorBuffer(RGBA{0, 0, 0, 255});
-    ClearDepthBuffer(9999.0f);
-    Render(tetraMesh, renderVars);
-
-    DrawToConsole();
+    RenderToConsole();
 
     return 0;
 }
