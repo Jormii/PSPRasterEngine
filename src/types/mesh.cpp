@@ -1,23 +1,18 @@
 #include "mesh.hpp"
 
-Mesh::Mesh() : vertices{std::vector<Vec3f>{}}, triangles{std::vector<Vec3i>{}}, color{std::vector<RGBA>{}}
+VertexData::VertexData(const Vec3f &position, const RGBA &color) : position{position}, color{color}
 {
 }
 
-Mesh::Mesh(std::vector<Vec3f> vertices, std::vector<Vec3i> triangles, std::vector<RGBA> color)
-    : vertices{vertices}, triangles{triangles}, color{color}
-{
-}
-
-Mesh::Mesh(const Mesh &mesh)
-    : vertices{mesh.vertices}, triangles{mesh.triangles}, color{mesh.color}
+Mesh::Mesh(size_t vertexCount, size_t triangleCount, const VertexData *vertexData, const Vec3i *triangles)
+    : vertexCount{vertexCount}, triangleCount{triangleCount}, vertexData{vertexData}, triangles{triangles}
 {
 }
 
 std::ostream &operator<<(std::ostream &out, const Mesh &mesh)
 {
     out << "Mesh: ";
-    out << mesh.vertices.size() << " vertices. " << mesh.triangles.size() << " triangles.\n";
+    out << mesh.vertexCount << " vertices. " << mesh.triangleCount << " triangles.\n";
 
     return out;
 }
