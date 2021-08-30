@@ -92,6 +92,7 @@ void Render(const Mesh &mesh, const RenderVars &vars)
         fsIn.pixel.x = fragment.xScreenCoord;
         fsIn.pixel.y = fragment.yScreenCoord;
         fsIn.depth = fragment.depth;
+        fsIn.color = fragment.color;
 
         FSOut fsOut{vars.fs(fsIn)};
 

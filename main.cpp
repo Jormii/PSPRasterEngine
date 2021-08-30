@@ -7,7 +7,7 @@
 #include "./Sample Meshes/cube.hpp"
 #include "./Sample Meshes/tetra.hpp"
 
-#define REDIRECT
+// #define REDIRECT
 #ifdef REDIRECT
 constexpr int_psp WIDTH{140};
 constexpr int_psp HEIGHT{35};
@@ -26,10 +26,7 @@ VSOut CustomVertexShader(const VSIn &vsIn)
 
 FSOut CustomFragmentShader(const FSIn &fsIn)
 {
-    RGBA color{255, 255, 255, 255};
-    float_psp depth{fsIn.depth};
-
-    return FSOut{color, depth};
+    return FSOut{fsIn.color, fsIn.depth};
 }
 
 int main()
@@ -59,7 +56,7 @@ int main()
     // Render
     ClearColorBuffer(RGBA{0, 0, 0, 255});
     ClearDepthBuffer(9999.0f);
-    Render(cubeMesh, renderVars);
+    Render(tetraMesh, renderVars);
 
     DrawToConsole();
 

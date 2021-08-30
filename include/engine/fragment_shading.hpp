@@ -9,6 +9,7 @@ struct FSIn
 {
     Vec2i pixel;
     float_psp depth;
+    RGBA color;
 
     FSIn();
 };
