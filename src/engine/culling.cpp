@@ -5,9 +5,9 @@ std::vector<Vec3i> BackfaceCulling(std::vector<Vec3i> triangles, std::vector<VSO
     std::vector<Vec3i> culledTris;
     for (const Vec3i &tri : triangles)
     {
-        Vec3f v1{vertexShadingOut[tri.x].vertexView.DivideByW()};
-        Vec3f v2{vertexShadingOut[tri.y].vertexView.DivideByW()};
-        Vec3f v3{vertexShadingOut[tri.z].vertexView.DivideByW()};
+        Vec3f v1{vertexShadingOut[tri.x].vertexMVP.DivideByW()};
+        Vec3f v2{vertexShadingOut[tri.y].vertexMVP.DivideByW()};
+        Vec3f v3{vertexShadingOut[tri.z].vertexMVP.DivideByW()};
 
         Vec3f v1v2{v2 - v1};
         Vec3f v2v3{v3 - v2};

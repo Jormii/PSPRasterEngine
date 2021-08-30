@@ -37,6 +37,6 @@ const ClipPlane FRUSTUM_PLANES[]{
     ClipPlane(Vec3f(0.0f, 0.0f, 1.0f), Vec3f(0.0f, 0.0f, -1.0f))};
 
 Mesh Clip(const Mesh &mesh, std::vector<VSOut> vertexShadingOut, const std::vector<Vec3i> culledTriangles);
-Mesh ClipTriangle(size_t a, size_t b, size_t c, const Mesh &mesh, const std::vector<VSOut> vertexShadingOut);
+Mesh ClipTriangle(int_psp a, int_psp b, int_psp c, const Mesh &mesh, const std::vector<VSOut> vertexShadingOut);
 
 #endif

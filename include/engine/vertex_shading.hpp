@@ -19,11 +19,11 @@ struct VSIn
 
 struct VSOut
 {
-    Vec4f vertexView;
+    Vec4f vertexMVP;
     Vec4f vertexHomo;
     Vec3f vertexPerspDiv;
 
-    VSOut(const Vec4f &vertexView, const Vec4f &vertexHomo);
+    VSOut(const Vec4f &vertexMVP, const Vec4f &vertexHomo);
 };
 
 typedef VSOut (*VertexShader)(const VSIn &input);

@@ -24,12 +24,6 @@ Mat4f Mat4f::Transpose() const
 
 Vec4f operator*(const Mat4f &m, const Vec4f &v)
 {
-    /*
-    std::cout << Vec4f::Dot(m.r1, v) << "\n";
-    std::cout << Vec4f::Dot(m.r2, v) << "\n";
-    std::cout << Vec4f::Dot(m.r3, v) << "\n";
-    std::cout << Vec4f::Dot(m.r4, v) << "\n\n";
-    */
     return Vec4f{
         Vec4f::Dot(m.r1, v),
         Vec4f::Dot(m.r2, v),
