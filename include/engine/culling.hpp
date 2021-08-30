@@ -1,12 +1,10 @@
 #ifndef CULLING_HPP
 #define CULLING_HPP
 
-#include <vector>
-
 #include "vertex_shading.hpp"
 
-#include "vec3i.hpp"
+#include "mesh.hpp"
 
-std::vector<Vec3i> BackfaceCulling(std::vector<Vec3i> triangles, std::vector<VSOut> vertexShadingOutput);
+bool *BackfaceCulling(const Mesh &mesh, const VSOut *vsOut);
 
 #endif

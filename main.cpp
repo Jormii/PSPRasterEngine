@@ -18,10 +18,8 @@ constexpr size_t HEIGHT{24};
 
 VSOut CustomVertexShader(const VSIn &vsIn)
 {
-    Vec4f vHomo{vsIn.vertex, 1.0f};
-    Vec4f vertexMVP{vsIn.modelViewProj * vHomo};
-
-    return VSOut{vertexMVP, vHomo};
+    Vec4f vertexTransformed{vsIn.matrices.mvp * Vec4f{vsIn.vertex, 1.0f}};
+    return VSOut{vertexTransformed, vsIn.color};
 }
 
 FSOut CustomFragmentShader(const FSIn &fsIn)

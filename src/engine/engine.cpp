@@ -76,7 +76,7 @@ void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, Fragm
     }
 
     // Backface culling
-    std::vector<Vec3i> culledTriangles{BackfaceCulling(mesh.triangles, vsOut)};
+    bool *trisToDraw{BackfaceCulling(mesh, vsOut)};
 
     // Clipping
     Mesh clippingOut{Clip(mesh, vsOut, culledTriangles)};
