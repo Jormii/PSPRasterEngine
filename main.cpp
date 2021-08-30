@@ -4,6 +4,7 @@
 #include "./include/engine/engine.hpp"
 #include "./include/engine/utils.hpp"
 
+#include "./Sample Meshes/cube.hpp"
 #include "./Sample Meshes/tetra.hpp"
 
 #define REDIRECT
@@ -37,7 +38,7 @@ int main()
 
     // Create render variables
     float_psp angle{0.25 * M_PI};
-    float_psp distance{3.0f};
+    float_psp distance{3.5f};
     float_psp cameraX{distance * cosf(angle)};
     float_psp cameraZ{distance * sinf(angle)};
 
@@ -58,7 +59,7 @@ int main()
     // Render
     ClearColorBuffer(RGBA{0, 0, 0, 255});
     ClearDepthBuffer(9999.0f);
-    Render(tetraMesh, renderVars);
+    Render(cubeMesh, renderVars);
 
     DrawToConsole();
 

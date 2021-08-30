@@ -1,6 +1,6 @@
-**/_Ignore/
 **/.vscode/
-**/build/
-**/build_cpp/
+**/__pycache__/
+/tmp/
 
 *.o
+*.obj

@@ -4,7 +4,7 @@
 # MODIFY THESE
 ###
 MAIN_FILE="./main.cpp"
-OUTPUT_FILENAME="./_Ignore/Engine"
+OUTPUT_FILENAME="./tmp/Engine"
 
 COMPILE_FLAGS="-Wall -O2"
 HEADER_DIR="./include/"
