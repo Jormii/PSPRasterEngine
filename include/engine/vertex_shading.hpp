@@ -6,6 +6,6 @@
 
 #include "mesh.hpp"
 
-typedef void (*VertexShader)(const DrawMatrices &matrices, const VertexData &meshData, const BufferVertexData *out);
+typedef void (*VertexShader)(const DrawMatrices &matrices, const VertexData &vertexData, BufferVertexData *out);
 
 #endif

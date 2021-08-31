@@ -12,8 +12,6 @@ struct BufferVertexData
     Vec3f position;
     Vec4f positionHomo;
     RGBA color;
-
-    BufferVertexData();
 };
 
 #endif

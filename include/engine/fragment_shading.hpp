@@ -10,8 +10,6 @@ struct FSOut
 {
     RGBA color;
     float_psp depth;
-
-    FSOut();
 };
 
 typedef void (*FragmentShader)(const Fragment &fragment, FSOut &out);

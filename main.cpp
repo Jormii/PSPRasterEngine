@@ -1,10 +1,8 @@
 #include <cmath>
-#include <vector>
 
 #include "./include/engine/engine.hpp"
 #include "./include/engine/utils.hpp"
 
-#include "./Sample Meshes/cube.hpp"
 #include "./Sample Meshes/tetra.hpp"
 
 // #define REDIRECT
@@ -13,18 +11,23 @@ constexpr size_t WIDTH{140};
 constexpr size_t HEIGHT{35};
 #else
 constexpr size_t WIDTH{48};
-constexpr size_t HEIGHT{24};
+constexpr size_t HEIGHT{14};
 #endif
 
-VSOut CustomVertexShader(const VSIn &vsIn)
+void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, BufferVertexData *out)
 {
-    Vec4f vertexTransformed{vsIn.matrices.mvp * Vec4f{vsIn.vertex, 1.0f}};
-    return VSOut{vertexTransformed, vsIn.color};
+    Vec4f vHomo{vertexData.position, 1.0f};
+    Vec4f vertexTransformed{matrices.mvp * vHomo};
+
+    out->position = vertexTransformed.DivideByW();
+    out->positionHomo = vertexTransformed;
+    out->color = vertexData.color;
 }
 
-FSOut CustomFragmentShader(const FSIn &fsIn)
+void CustomFS(const Fragment &fragment, FSOut &out)
 {
-    return FSOut{fsIn.color, fsIn.depth};
+    out.depth = fragment.depth;
+    out.color = fragment.color;
 }
 
 int main()
@@ -49,7 +52,7 @@ int main()
     // Draw call
     ClearColorBuffer(RGBA{0, 0, 0, 255}); // Black
     ClearDepthBuffer(9999.0f);
-    Draw(tetraMesh, matrices, &CustomVertexShader, &CustomFragmentShader);
+    Draw(tetraMesh, matrices, &CustomVS, &CustomFS);
 
     // Render
     RenderToConsole();

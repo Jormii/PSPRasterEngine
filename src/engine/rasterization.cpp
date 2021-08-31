@@ -1,13 +1,13 @@
 #include "rasterization.hpp"
 
 #include "edge.hpp"
+
 #include "vec2i.hpp"
 
 #include <cmath>
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
-
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_psp topEdgeMask, int_psp leftEdgeMask);
 Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 
@@ -123,11 +123,11 @@ bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_
     return true;
 }
 
-Vec3f BarycentricCoordinates(const Vec2f &p, EdgeFunction *edgeFuncs)
+Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
 {
-    float_psp f0{edgeFuncs[0].Evaluate(p)};
-    float_psp f1{edgeFuncs[1].Evaluate(p)};
-    float_psp f2{edgeFuncs[2].Evaluate(p)};
+    float_psp f0{edgeFuncs[0].Evaluate(pixel)};
+    float_psp f1{edgeFuncs[1].Evaluate(pixel)};
+    float_psp f2{edgeFuncs[2].Evaluate(pixel)};
     float fSum{f0 + f1 + f2};
 
     float_psp v{f0 / fSum};
