@@ -5,7 +5,7 @@
 
 #include "./Sample Meshes/tetra.hpp"
 
-// #define REDIRECT
+#define REDIRECT
 #ifdef REDIRECT
 constexpr size_t WIDTH{140};
 constexpr size_t HEIGHT{35};
@@ -19,7 +19,6 @@ void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, Buffer
     Vec4f vHomo{vertexData.position, 1.0f};
     Vec4f vertexTransformed{matrices.mvp * vHomo};
 
-    out->position = vertexTransformed.DivideByW();
     out->positionHomo = vertexTransformed;
     out->color = vertexData.color;
 }

@@ -105,8 +105,7 @@ bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_
 {
     for (size_t i{0}; i < 3; ++i)
     {
-        // TODO: This minus is wrong
-        float_psp fPixel{-edgeFuncs[i].Evaluate(pixel)};
+        float_psp fPixel{edgeFuncs[i].Evaluate(pixel)};
         if (fPixel < 0.0f)
         {
             return false;

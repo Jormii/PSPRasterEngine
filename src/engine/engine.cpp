@@ -70,6 +70,7 @@ void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, Fragm
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
         vs(matrices, mesh.vertexData[i], buffer + i);
+        (buffer + i)->position = (buffer + i)->positionHomo.DivideByW();
     }
 
     // Rasterize
