@@ -6,17 +6,7 @@
 
 #include "types.hpp"
 #include "mesh.hpp"
-#include "mat4f.hpp"
-
-struct DrawMatrices
-{
-    Mat4f model;
-    Mat4f view;
-    Mat4f projection;
-    Mat4f mvp;
-
-    DrawMatrices(const Mat4f &model, const Mat4f &view, const Mat4f &projection);
-};
+#include "rgba.hpp"
 
 void InitializeContext(size_t width, size_t height);
 void ClearColorBuffer(const RGBA &color);

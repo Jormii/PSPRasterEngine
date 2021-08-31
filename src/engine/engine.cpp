@@ -1,8 +1,9 @@
 #include "engine.hpp"
 
-#include "culling.hpp"
-#include "clipping.hpp"
+#include <vector>
+
 #include "fragment.hpp"
+#include "draw_buffer.hpp"
 #include "rasterization.hpp"
 
 struct EngineContext
@@ -17,9 +18,11 @@ struct EngineContext
     float_psp *depthBuffer;
 } context;
 
-DrawMatrices::DrawMatrices(const Mat4f &model, const Mat4f &view, const Mat4f &projection)
-    : model{model}, view{view}, projection{projection}, mvp{projection * view * model}
+size_t BufferIndex(size_t x, size_t y);
+
+size_t BufferIndex(size_t x, size_t y)
 {
+    return x + (context.viewportHeight - 1 - y) * context.viewportWidth;
 }
 
 void InitializeContext(size_t width, size_t height)
@@ -63,40 +66,22 @@ void ClearDepthBuffer(float_psp depth)
 void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, FragmentShader fs)
 {
     // Vertex shading
-    VSOut *vsOut{new VSOut[mesh.vertexCount]};
-    VSIn vsIn{matrices};
-
+    BufferVertexData *buffer{new BufferVertexData[mesh.vertexCount]};
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
-        const VertexData *vertexData{mesh.vertexData + i};
-        vsIn.vertex = vertexData->position;
-        vsIn.color = vertexData->color;
-
-        vsOut[i] = vs(vsIn);
+        vs(matrices, mesh.vertexData[i], buffer + i);
     }
 
-    // Backface culling
-    bool *trisToDraw{BackfaceCulling(mesh, vsOut)};
+    // Rasterize
+    std::vector<Fragment> fragments{Rasterize(mesh, buffer, context.viewportWidth, context.viewportHeight)};
 
-    // Clipping
-    ClipOut clippingOut{Clip(mesh, vsOut, trisToDraw)};
-
-    // Rasterization
-    std::vector<Fragment> fragments{Rasterize(clippingOut, context.viewportWidth, context.viewportHeight)};
-
-    // Fragment shader
-    FSIn fsIn;
+    // Fragment shading
+    FSOut fsOut;
     for (const Fragment &fragment : fragments)
     {
-        fsIn.pixel.x = fragment.xScreenCoord;
-        fsIn.pixel.y = fragment.yScreenCoord;
-        fsIn.depth = fragment.depth;
-        fsIn.color = fragment.color;
+        fs(fragment, fsOut);
 
-        FSOut fsOut{vars.fs(fsIn)};
-
-        size_t bufferIndex{fragment.xScreenCoord +
-                           (context.viewportHeight - 1 - fragment.yScreenCoord) * context.viewportWidth};
+        size_t bufferIndex{BufferIndex(fragment.xScreenCoord, fragment.yScreenCoord)};
         if (fsOut.depth < context.depthBuffer[bufferIndex])
         {
             context.colorBuffer[bufferIndex] = fsOut.color;
@@ -105,11 +90,7 @@ void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, Fragm
     }
 
     // Free resources
-    delete[] vsOut;
-    delete[] trisToDraw;
-    delete[] clippedMesh.clippedMesh.vertexData;
-    delete[] clippedMesh.clippedMesh.triangles;
-    delete[] clippedMesh.verticesHomogeneous;
+    delete[] buffer;
 }
 
 #ifndef PSP

@@ -23,7 +23,7 @@ struct Mesh
     VertexData *vertexData;
     Vec3i *triangles;
 
-    Mesh(size_t vertexCount, size_t triangleCount, const VertexData *vertexData, const Vec3i *triangles);
+    Mesh(size_t vertexCount, size_t triangleCount, VertexData *vertexData, Vec3i *triangles);
 
     friend std::ostream &operator<<(std::ostream &out, const Mesh &mesh);
 };

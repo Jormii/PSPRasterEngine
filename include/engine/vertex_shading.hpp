@@ -1,31 +1,11 @@
 #ifndef VERTEX_SHADING_HPP
 #define VERTEX_SHADING_HPP
 
-#include "engine.hpp"
+#include "draw_buffer.hpp"
+#include "draw_matrices.hpp"
 
-#include "vec3f.hpp"
-#include "vec4f.hpp"
-#include "mat4f.hpp"
+#include "mesh.hpp"
 
-struct VSIn
-{
-    Vec3f vertex;
-    RGBA color;
-    const DrawMatrices &matrices;
-
-    VSIn(const DrawMatrices &matrices);
-};
-
-struct VSOut
-{
-    Vec3f perspectiveDivide;
-    Vec4f vertexTransformed;
-    RGBA vertexColor;
-
-    VSOut();
-    VSOut(const Vec4f &vertexTransformed, const RGBA &color);
-};
-
-typedef VSOut (*VertexShader)(const VSIn &input);
+typedef void (*VertexShader)(const DrawMatrices &matrices, const VertexData &meshData, const BufferVertexData *out);
 
 #endif

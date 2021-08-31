@@ -4,7 +4,7 @@ VertexData::VertexData(const Vec3f &position, const RGBA &color) : position{posi
 {
 }
 
-Mesh::Mesh(size_t vertexCount, size_t triangleCount, const VertexData *vertexData, const Vec3i *triangles)
+Mesh::Mesh(size_t vertexCount, size_t triangleCount, VertexData *vertexData, Vec3i *triangles)
     : vertexCount{vertexCount}, triangleCount{triangleCount}, vertexData{vertexData}, triangles{triangles}
 {
 }
