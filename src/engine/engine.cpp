@@ -1,13 +1,10 @@
 #include "engine.hpp"
 
-#include "vertex_shading.hpp"
-#include "culling.hpp"
-#include "clipping.hpp"
-#include "fragment.hpp"
-#include "rasterization.hpp"
+#include <vector>
 
-#include "types.hpp"
-#include "rgba.hpp"
+#include "fragment.hpp"
+#include "draw_buffer.hpp"
+#include "rasterization.hpp"
 
 struct EngineContext
 {
@@ -21,9 +18,11 @@ struct EngineContext
     float_psp *depthBuffer;
 } context;
 
-RenderVars::RenderVars(const Mat4f &model, const Mat4f &view, const Mat4f &projection, VertexShader vs, FragmentShader fs)
-    : model{model}, view{view}, projection{projection}, vs{vs}, fs{fs}
+size_t BufferIndex(size_t x, size_t y);
+
+size_t BufferIndex(size_t x, size_t y)
 {
+    return x + (context.viewportHeight - 1 - y) * context.viewportWidth;
 }
 
 void InitializeContext(size_t width, size_t height)
@@ -64,49 +63,39 @@ void ClearDepthBuffer(float_psp depth)
     }
 }
 
-void Render(const Mesh &mesh, const RenderVars &vars)
+void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, FragmentShader fs)
 {
     // Vertex shading
-    std::vector<VSOut> vsOut;
-    VSIn vsIn{vars.model, vars.view, vars.projection};
-
-    for (const Vec3f &vertex : mesh.vertices)
+    BufferVertexData *buffer{new BufferVertexData[mesh.vertexCount]};
+    for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
-        vsIn.vertex = vertex;
-        vsOut.push_back(vars.vs(vsIn));
+        vs(matrices, mesh.vertexData[i], buffer + i);
+        (buffer + i)->position = (buffer + i)->positionHomo.DivideByW();
     }
 
-    // Backface culling
-    std::vector<Vec3i> culledTriangles{BackfaceCulling(mesh.triangles, vsOut)};
+    // Rasterize
+    std::vector<Fragment> fragments{Rasterize(mesh, buffer, context.viewportWidth, context.viewportHeight)};
 
-    // Clipping
-    Mesh clippingOut{Clip(mesh, vsOut, culledTriangles)};
-
-    // Rasterization
-    std::vector<Fragment> fragments{Rasterize(clippingOut, context.viewportWidth, context.viewportHeight)};
-
-    // Fragment shader
-    FSIn fsIn;
+    // Fragment shading
+    FSOut fsOut;
     for (const Fragment &fragment : fragments)
     {
-        fsIn.pixel.x = fragment.xScreenCoord;
-        fsIn.pixel.y = fragment.yScreenCoord;
-        fsIn.depth = fragment.depth;
+        fs(fragment, fsOut);
 
-        FSOut fsOut{vars.fs(fsIn)};
-
-        size_t bufferIndex{fragment.xScreenCoord +
-                           (context.viewportHeight - 1 - fragment.yScreenCoord) * context.viewportWidth};
+        size_t bufferIndex{BufferIndex(fragment.xScreenCoord, fragment.yScreenCoord)};
         if (fsOut.depth < context.depthBuffer[bufferIndex])
         {
             context.colorBuffer[bufferIndex] = fsOut.color;
             context.depthBuffer[bufferIndex] = fsOut.depth;
         }
     }
+
+    // Free resources
+    delete[] buffer;
 }
 
 #ifndef PSP
-void DrawToConsole()
+void RenderToConsole()
 {
     for (size_t i{0}; i < context.viewportWidth; ++i)
     {

@@ -1,62 +1,57 @@
 #include "rasterization.hpp"
 
-#include "vec2f.hpp"
+#include "edge.hpp"
+
+#include "vec2i.hpp"
 
 #include <cmath>
 
+bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
+void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_psp topEdgeMask, int_psp leftEdgeMask);
+Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 
-EdgeFunction::EdgeFunction(float_psp a, float_psp b, float_psp c) : a{a}, b{b}, c{c}
+bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 {
-}
+    // Determine if backfacing
+    const Vec3f &v1{buffer[tri.x].position};
+    const Vec3f &v2{buffer[tri.y].position};
+    const Vec3f &v3{buffer[tri.z].position};
 
-float_psp EdgeFunction::Evaluate(const Vec2f &p) const
-{
-    return a * p.x + b * p.y + c;
-}
+    Vec3f v1v2{v2 - v1};
+    Vec3f v2v3{v3 - v2};
+    Vec3f faceNormal{Vec3f::Cross(v1, v2)};
 
-EdgeFunction EdgeFunction::FromPoints(const Vec2f &p, const Vec2f &q)
-{
-    Vec2f v{q - p};
-    return EdgeFunction{
-        -v.y,
-        v.x,
-        v.y * p.x - v.x * p.y};
-}
-
-std::vector<Fragment> Rasterize(const Mesh &clippingOut, size_t width, size_t height)
-{
-    // Calculate screen-space coordinates
-    std::vector<Vec2f> screenSpace;
-    for (const Vec3f &v : clippingOut.vertices)
+    Vec3f centroid{(v1 + v2 + v3) / 3.0f}; // TODO: Unlikely unnecessary
+    float_psp dot{Vec3f::Dot(centroid, faceNormal)};
+    if (dot <= 0.0f)
     {
-        screenSpace.push_back(VertexScreenCoordinate(v, width, height));
+        return false;
     }
 
-    // Generate fragments
-    std::vector<Fragment> fragments;
-    for (const Vec3i &tri : clippingOut.triangles)
+    // Determine if outside the frustum
+    size_t insideCount{0};
+    for (const Vec3f &v : {v1, v2, v3})
     {
-        int_psp a{tri.x};
-        int_psp b{tri.y};
-        int_psp c{tri.z};
+        bool insideX{v.x >= -1.0f && v.x <= 1.0f};
+        bool insideY{v.y >= -1.0f && v.y <= 1.0f};
+        bool insideZ{v.z >= -1.0f && v.z <= 1.0f};
 
-        std::vector<Fragment> triangleFragments{RasterizeTriangle(a, b, c, clippingOut, screenSpace, width, height)};
-        fragments.insert(fragments.end(), triangleFragments.begin(), triangleFragments.end());
+        insideCount += (insideX && insideY && insideZ);
     }
 
-    return fragments;
+    return insideCount > 0;
 }
 
-std::vector<Fragment> RasterizeTriangle(int_psp a, int_psp b, int_psp c, const Mesh &mesh, const std::vector<Vec2f> screenSpaceCoords, size_t width, size_t height)
+void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height)
 {
     // Edge equations
     EdgeFunction edgeFuncs[]{
-        EdgeFunction::FromPoints(screenSpaceCoords[a], screenSpaceCoords[b]),
-        EdgeFunction::FromPoints(screenSpaceCoords[b], screenSpaceCoords[c]),
-        EdgeFunction::FromPoints(screenSpaceCoords[c], screenSpaceCoords[a])};
+        EdgeFunction::FromPoints(screenSpace[tri.x], screenSpace[tri.y]),
+        EdgeFunction::FromPoints(screenSpace[tri.y], screenSpace[tri.z]),
+        EdgeFunction::FromPoints(screenSpace[tri.z], screenSpace[tri.x])};
 
-    // Check top and left edges
+    // Retrieve top and left edges
     int_psp topEdgeMask{0};
     int_psp leftEdgeMask{0};
     for (size_t i{0}; i < 3; ++i)
@@ -73,16 +68,15 @@ std::vector<Fragment> RasterizeTriangle(int_psp a, int_psp b, int_psp c, const M
     }
 
     // Bounding box
-    float_psp minX{std::min(screenSpaceCoords[a].x, std::min(screenSpaceCoords[b].x, screenSpaceCoords[c].x))};
-    float_psp minY{std::min(screenSpaceCoords[a].y, std::min(screenSpaceCoords[b].y, screenSpaceCoords[c].y))};
-    float_psp maxX{std::max(screenSpaceCoords[a].x, std::max(screenSpaceCoords[b].x, screenSpaceCoords[c].x))};
-    float_psp maxY{std::max(screenSpaceCoords[a].y, std::max(screenSpaceCoords[b].y, screenSpaceCoords[c].y))};
+    float_psp minX{std::min(screenSpace[tri.x].x, std::min(screenSpace[tri.y].x, screenSpace[tri.z].x))};
+    float_psp minY{std::min(screenSpace[tri.x].y, std::min(screenSpace[tri.y].y, screenSpace[tri.z].y))};
+    float_psp maxX{std::max(screenSpace[tri.x].x, std::max(screenSpace[tri.y].x, screenSpace[tri.z].x))};
+    float_psp maxY{std::max(screenSpace[tri.x].y, std::max(screenSpace[tri.y].y, screenSpace[tri.z].y))};
 
     Vec2i lowPixel{static_cast<int_psp>(floorf(minX)), static_cast<int_psp>(floorf(minY))};
     Vec2i highPixel{static_cast<int_psp>(floorf(maxX)), static_cast<int_psp>(floorf(maxY))};
 
     // Create fragments
-    std::vector<Fragment> fragments;
     for (int_psp x{lowPixel.x}; x <= highPixel.x; ++x)
     {
         for (int_psp y{lowPixel.y}; y <= highPixel.y; ++y)
@@ -90,65 +84,28 @@ std::vector<Fragment> RasterizeTriangle(int_psp a, int_psp b, int_psp c, const M
             Vec2f pixelCenter{x + 0.5f, y + 0.5f};
             if (PixelWithinTriangle(pixelCenter, edgeFuncs, topEdgeMask, leftEdgeMask))
             {
-                Vec3f baryCoords{BarycentricCoordinates(pixelCenter, screenSpaceCoords[a], screenSpaceCoords[b], screenSpaceCoords[c])};
+                Vec3f baryCoords{BarycentricCoordinates(pixelCenter, edgeFuncs)};
 
                 float_psp depth{
-                    baryCoords.x * mesh.vertices[a].z +
-                    baryCoords.y * mesh.vertices[b].z +
-                    baryCoords.z * mesh.vertices[c].z};
-                Fragment f{x, y, depth};
+                    baryCoords.x * buffer[tri.x].position.z +
+                    baryCoords.y * buffer[tri.y].position.z +
+                    baryCoords.z * buffer[tri.z].position.z};
+
+                // TODO: Interpolate color
+                RGBA white{255, 255, 255, 255};
+
+                Fragment f{x, y, depth, white};
                 fragments.push_back(f);
             }
         }
     }
-
-    return fragments;
-}
-
-Vec3f BarycentricCoordinates(const Vec2f &p, const Vec2f &a, const Vec2f &b, const Vec2f &c)
-{
-    Vec2f v0{b - a};
-    Vec2f v1{c - a};
-    Vec2f v2{p - a};
-
-    float_t d00{static_cast<float_t>(Vec2f::Dot(v0, v0))};
-    float_t d01{static_cast<float_t>(Vec2f::Dot(v0, v1))};
-    float_t d11{static_cast<float_t>(Vec2f::Dot(v1, v1))};
-    float_t d20{static_cast<float_t>(Vec2f::Dot(v2, v0))};
-    float_t d21{static_cast<float_t>(Vec2f::Dot(v2, v1))};
-    float_t denom = d00 * d11 - d01 * d01;
-
-    float_t v{(d11 * d20 - d01 * d21) / denom};
-    float_t w{(d00 * d21 - d01 * d20) / denom};
-    return Vec3f{v, w, 1.0f - v - w};
-}
-
-Vec2f VertexScreenCoordinate(const Vec3f &p, size_t width, size_t height)
-{
-    float_psp wHalf{0.5f * width};
-    float_psp hHalf{0.5f * height};
-
-    return Vec2f{
-        wHalf * (p.x + 1.0f),
-        hHalf * (p.y + 1.0f)};
-}
-
-Vec2i VertexPixel(const Vec3f &p, size_t width, size_t height)
-{
-    float_t widthF{static_cast<float_t>(width)};
-    float_t heightF{static_cast<float_t>(height)};
-
-    return Vec2i{
-        static_cast<int_psp>(floorf(0.5f * (widthF - 1.0f) * (p.x + 1.0f))),
-        static_cast<int_psp>(floorf(0.5f * (heightF - 1.0f) * (p.y + 1.0f)))};
 }
 
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_psp topEdgeMask, int_psp leftEdgeMask)
 {
     for (size_t i{0}; i < 3; ++i)
     {
-        // TODO: This minus is wrong
-        float_psp fPixel{-edgeFuncs[i].Evaluate(pixel)};
+        float_psp fPixel{edgeFuncs[i].Evaluate(pixel)};
         if (fPixel < 0.0f)
         {
             return false;
@@ -163,4 +120,51 @@ bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_
     }
 
     return true;
+}
+
+Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
+{
+    float_psp f0{edgeFuncs[0].Evaluate(pixel)};
+    float_psp f1{edgeFuncs[1].Evaluate(pixel)};
+    float_psp f2{edgeFuncs[2].Evaluate(pixel)};
+    float fSum{f0 + f1 + f2};
+
+    float_psp v{f0 / fSum};
+    float_psp w{f1 / fSum};
+    return Vec3f{1.0f - v - w, v, w};
+}
+
+std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer, size_t width, size_t height)
+{
+    // Calculate screen-space coordinates
+    Vec2f *screenSpace{new Vec2f[mesh.vertexCount]};
+    for (size_t i{0}; i < mesh.vertexCount; ++i)
+    {
+        screenSpace[i] = VertexScreenCoordinate(buffer[i].position, width, height);
+    }
+
+    // Generate fragments
+    std::vector<Fragment> fragments;
+    for (size_t i{0}; i < mesh.triangleCount; ++i)
+    {
+        const Vec3i &tri{mesh.triangles[i]};
+        if (!TriangleIsVisible(tri, buffer))
+        {
+            continue;
+        }
+
+        RasterizeTriangle(tri, buffer, screenSpace, fragments, width, height);
+    }
+
+    return fragments;
+}
+
+Vec2f VertexScreenCoordinate(const Vec3f &p, size_t width, size_t height)
+{
+    float_psp wHalf{0.5f * width};
+    float_psp hHalf{0.5f * height};
+
+    return Vec2f{
+        wHalf * (p.x + 1.0f),
+        hHalf * (p.y + 1.0f)};
 }

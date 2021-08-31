@@ -29,6 +29,38 @@ float_psp Vec4f::Dot(const Vec4f &u, const Vec4f &v)
     return (u.x * v.x) + (u.y * v.y) + (u.z * v.z) + (u.w * v.w);
 }
 
+Vec4f Vec4f::Interpolate(const Vec4f &u, const Vec4f &v, float_psp t)
+{
+    return (1.0 - t) * u + t * v;
+}
+
+Vec4f operator+(const Vec4f &u, const Vec4f &v)
+{
+    return Vec4f{
+        u.x + v.x,
+        u.y + v.y,
+        u.z + v.z,
+        u.w + v.w};
+}
+
+Vec4f operator-(const Vec4f &u, const Vec4f &v)
+{
+    return Vec4f{
+        u.x - v.x,
+        u.y - v.y,
+        u.z - v.z,
+        u.w - v.w};
+}
+
+Vec4f operator*(float_psp scalar, const Vec4f &v)
+{
+    return Vec4f{
+        scalar * v.x,
+        scalar * v.y,
+        scalar * v.z,
+        scalar * v.w};
+}
+
 std::ostream &operator<<(std::ostream &out, const Vec4f &v)
 {
     out << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";

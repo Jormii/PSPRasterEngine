@@ -1,21 +1,24 @@
-#include <vector>
+#ifndef CUBE_HPP
+#define CUBE_HPP
 
-#include "vec3f.hpp"
-#include "vec3i.hpp"
-#include "rgba.hpp"
 #include "mesh.hpp"
 
-std::vector<Vec3f> cubeVertices{
-	Vec3f{1.0f, 1.0f, -1.0f},
-	Vec3f{1.0f, -1.0f, -1.0f},
-	Vec3f{1.0f, 1.0f, 1.0f},
-	Vec3f{1.0f, -1.0f, 1.0f},
-	Vec3f{-1.0f, 1.0f, -1.0f},
-	Vec3f{-1.0f, -1.0f, -1.0f},
-	Vec3f{-1.0f, 1.0f, 1.0f},
-	Vec3f{-1.0f, -1.0f, 1.0f}};
+RGBA white{255, 255, 255, 255};
 
-std::vector<Vec3i> cubeTriangles{
+size_t cubeVertexCount{8};
+size_t cubeTriangleCount{12};
+
+VertexData cubeVertexData[]{
+	VertexData{Vec3f{1.0f, 1.0f, -1.0f}, white},
+	VertexData{Vec3f{1.0f, -1.0f, -1.0f}, white},
+	VertexData{Vec3f{1.0f, 1.0f, 1.0f}, white},
+	VertexData{Vec3f{1.0f, -1.0f, 1.0f}, white},
+	VertexData{Vec3f{-1.0f, 1.0f, -1.0f}, white},
+	VertexData{Vec3f{-1.0f, -1.0f, -1.0f}, white},
+	VertexData{Vec3f{-1.0f, 1.0f, 1.0f}, white},
+	VertexData{Vec3f{-1.0f, -1.0f, 1.0f}, white}};
+
+Vec3i cubeTriangles[]{
 	Vec3i{4, 2, 0},
 	Vec3i{2, 7, 3},
 	Vec3i{6, 5, 7},
@@ -29,14 +32,6 @@ std::vector<Vec3i> cubeTriangles{
 	Vec3i{0, 2, 3},
 	Vec3i{4, 0, 1}};
 
-std::vector<RGBA> cubeColor{
-	RGBA{255, 255, 255, 255},
-	RGBA{255, 255, 255, 255},
-	RGBA{255, 255, 255, 255},
-	RGBA{255, 255, 255, 255},
-	RGBA{255, 255, 255, 255},
-	RGBA{255, 255, 255, 255},
-	RGBA{255, 255, 255, 255},
-	RGBA{255, 255, 255, 255}};
+Mesh cubeMesh{cubeVertexCount, cubeTriangleCount, cubeVertexData, cubeTriangles};
 
-Mesh cubeMesh{cubeVertices, cubeTriangles, cubeColor};
+#endif
