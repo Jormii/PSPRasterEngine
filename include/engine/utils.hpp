@@ -5,6 +5,17 @@
 #include "vec3f.hpp"
 #include "mat4f.hpp"
 
+template <typename T, typename U>
+struct Tuple
+{
+    const T &first;
+    const U &second;
+
+    Tuple(const T &first, const U &second) : first{first}, second{second}
+    {
+    }
+};
+
 Mat4f Translation(const Vec3f &p);
 Mat4f Scaling(float_psp uniformScale);
 Mat4f Scaling(const Vec3f &scale);

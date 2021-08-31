@@ -79,7 +79,7 @@ void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, Fragm
     bool *trisToDraw{BackfaceCulling(mesh, vsOut)};
 
     // Clipping
-    Mesh clippingOut{Clip(mesh, vsOut, culledTriangles)};
+    ClipOut clippingOut{Clip(mesh, vsOut, trisToDraw)};
 
     // Rasterization
     std::vector<Fragment> fragments{Rasterize(clippingOut, context.viewportWidth, context.viewportHeight)};
@@ -103,6 +103,13 @@ void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, Fragm
             context.depthBuffer[bufferIndex] = fsOut.depth;
         }
     }
+
+    // Free resources
+    delete[] vsOut;
+    delete[] trisToDraw;
+    delete[] clippedMesh.clippedMesh.vertexData;
+    delete[] clippedMesh.clippedMesh.triangles;
+    delete[] clippedMesh.verticesHomogeneous;
 }
 
 #ifndef PSP
