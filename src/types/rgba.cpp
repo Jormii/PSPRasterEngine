@@ -1,7 +1,5 @@
 #include "rgba.hpp"
 
-#include "vec4f.hpp"
-
 RGBA::RGBA() : r{0}, g{0}, b{0}, opacity{255}
 {
 }
@@ -20,6 +18,15 @@ RGBA::RGBA(const RGBA &color) : r{color.r}, g{color.g}, b{color.b}, opacity{colo
 {
 }
 
+Vec4f RGBA::AsVec4f() const
+{
+    return Vec4f{
+        static_cast<float_psp>(r),
+        static_cast<float_psp>(g),
+        static_cast<float_psp>(b),
+        static_cast<float_psp>(opacity)};
+}
+
 RGBA RGBA::Interpolate(const RGBA &c1, const RGBA &c2, float_psp t)
 {
     Vec4f c1F{static_cast<float_psp>(c1.r), static_cast<float_psp>(c1.g), static_cast<float_psp>(c1.b), static_cast<float_psp>(c1.opacity)};
@@ -30,6 +37,19 @@ RGBA RGBA::Interpolate(const RGBA &c1, const RGBA &c2, float_psp t)
         static_cast<uint8_psp>(interpolated.y),
         static_cast<uint8_psp>(interpolated.z),
         static_cast<uint8_psp>(interpolated.w)};
+}
+
+RGBA RGBA::BarycentricInterpolation(const RGBA &c1, const RGBA &c2, const RGBA &c3, const Vec3f &weights)
+{
+    Vec4f interpolatedVec4{Vec4f::BarycentricInterpolation(
+        c1.AsVec4f(), c2.AsVec4f(), c3.AsVec4f(),
+        weights)};
+
+    return RGBA{
+        static_cast<uint8_psp>(interpolatedVec4.x),
+        static_cast<uint8_psp>(interpolatedVec4.y),
+        static_cast<uint8_psp>(interpolatedVec4.z),
+        static_cast<uint8_psp>(interpolatedVec4.w)};
 }
 
 std::ostream &operator<<(std::ostream &out, const RGBA &rgba)

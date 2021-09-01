@@ -1,15 +1,15 @@
 #include "rasterization.hpp"
 
+#include <cmath>
+
 #include "edge.hpp"
 
 #include "vec2i.hpp"
 
-#include <cmath>
-
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_psp topEdgeMask, int_psp leftEdgeMask);
-Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
+Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferVertexData *buffer, const EdgeFunction *edgeFuncs);
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 {
@@ -84,17 +84,20 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
             Vec2f pixelCenter{x + 0.5f, y + 0.5f};
             if (PixelWithinTriangle(pixelCenter, edgeFuncs, topEdgeMask, leftEdgeMask))
             {
-                Vec3f baryCoords{BarycentricCoordinates(pixelCenter, edgeFuncs)};
+                Vec3f baryCoords{BarycentricCoordinates(pixelCenter, tri, buffer, edgeFuncs)};
 
                 float_psp depth{
                     baryCoords.x * buffer[tri.x].position.z +
                     baryCoords.y * buffer[tri.y].position.z +
                     baryCoords.z * buffer[tri.z].position.z};
 
-                // TODO: Interpolate color
-                RGBA white{255, 255, 255, 255};
+                RGBA color{RGBA::BarycentricInterpolation(
+                    buffer[tri.x].color,
+                    buffer[tri.y].color,
+                    buffer[tri.z].color,
+                    baryCoords)};
 
-                Fragment f{x, y, depth, white};
+                Fragment f{x, y, depth, color};
                 fragments.push_back(f);
             }
         }
@@ -122,16 +125,17 @@ bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_
     return true;
 }
 
-Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
+Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferVertexData *buffer, const EdgeFunction *edgeFuncs)
 {
-    float_psp f0{edgeFuncs[0].Evaluate(pixel)};
-    float_psp f1{edgeFuncs[1].Evaluate(pixel)};
-    float_psp f2{edgeFuncs[2].Evaluate(pixel)};
+    float_psp f0{edgeFuncs[0].Evaluate(pixel) / buffer[tri.x].positionHomo.w};
+    float_psp f1{edgeFuncs[1].Evaluate(pixel) / buffer[tri.y].positionHomo.w};
+    float_psp f2{edgeFuncs[2].Evaluate(pixel) / buffer[tri.z].positionHomo.w};
     float fSum{f0 + f1 + f2};
 
-    float_psp v{f0 / fSum};
-    float_psp w{f1 / fSum};
-    return Vec3f{1.0f - v - w, v, w};
+    float_psp u{f1 / fSum};
+    float_psp v{f2 / fSum};
+    float_psp w{1.0f - u - v};
+    return Vec3f{u, v, w};
 }
 
 std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer, size_t width, size_t height)

@@ -5,6 +5,7 @@
 
 #include "./Sample Meshes/tetra.hpp"
 
+// #define REDIRECT
 #ifdef REDIRECT
 constexpr size_t WIDTH{140};
 constexpr size_t HEIGHT{35};
