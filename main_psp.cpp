@@ -9,6 +9,7 @@
 
 #include "types.hpp"
 
+#include "./Sample Meshes/cube.hpp"
 #include "./Sample Meshes/tetra.hpp"
 
 PSP_MODULE_INFO("Engine Test", 0, 1, 0);
@@ -55,7 +56,7 @@ int main()
     DrawMatrices matrices{model, view, projection};
 
     // Draw call
-    ClearColorBuffer(RGBA{0, 0, 0, 255}); // Black
+    ClearColorBuffer(RGBA{0, 0, 0}); // Black
     ClearDepthBuffer(9999.0f);
     Draw(tetraMesh, matrices, &CustomVS, &CustomFS);
 
