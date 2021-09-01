@@ -3,16 +3,14 @@
 
 #include "mesh.hpp"
 
-RGBA white{255, 255, 255, 255};
-
 size_t tetraVertexCount{4};
 size_t tetraTriangleCount{4};
 
 VertexData tetraVertexData[]{
-    VertexData{Vec3f{0.0f, -1.0f, -1.0f}, white},
-    VertexData{Vec3f{0.866025f, -1.0f, 0.5f}, white},
-    VertexData{Vec3f{-0.866025f, -1.0f, 0.5f}, white},
-    VertexData{Vec3f{0.0f, 1.0f, 0.0f}, white}};
+    VertexData{Vec3f{0.0f, -1.0f, -1.0f}, RGBA{255, 0, 0}},
+    VertexData{Vec3f{0.866025f, -1.0f, 0.5f}, RGBA{0, 255, 0}},
+    VertexData{Vec3f{-0.866025f, -1.0f, 0.5f}, RGBA{0, 0, 255}},
+    VertexData{Vec3f{0.0f, 1.0f, 0.0f}, RGBA{255, 255, 255}}};
 
 Vec3i tetraTriangles[]{
     Vec3i{1, 2, 0},

@@ -13,6 +13,7 @@ struct RGBA
     uint8_psp opacity;
 
     RGBA();
+    RGBA(uint8_psp r, uint8_psp g, uint8_psp b);
     RGBA(uint8_psp r, uint8_psp g, uint8_psp b, uint8_psp opacity);
     RGBA(const RGBA &color);
 

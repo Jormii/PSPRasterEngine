@@ -6,6 +6,11 @@ RGBA::RGBA() : r{0}, g{0}, b{0}, opacity{255}
 {
 }
 
+RGBA::RGBA(uint8_psp r, uint8_psp g, uint8_psp b)
+    : r{r}, g{g}, b{b}, opacity{255}
+{
+}
+
 RGBA::RGBA(uint8_psp r, uint8_psp g, uint8_psp b, uint8_psp opacity)
     : r{r}, g{g}, b{b}, opacity{opacity}
 {
