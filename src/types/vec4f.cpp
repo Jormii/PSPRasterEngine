@@ -34,6 +34,11 @@ Vec4f Vec4f::Interpolate(const Vec4f &u, const Vec4f &v, float_psp t)
     return (1.0 - t) * u + t * v;
 }
 
+Vec4f Vec4f::BarycentricInterpolation(const Vec4f &u, const Vec4f &v, const Vec4f &w, const Vec3f &weights)
+{
+    return weights.x * u + weights.y * v + weights.z * w;
+}
+
 Vec4f operator+(const Vec4f &u, const Vec4f &v)
 {
     return Vec4f{

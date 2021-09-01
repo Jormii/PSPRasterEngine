@@ -3,12 +3,12 @@
 ###
 # MODIFY THESE
 ###
-MAIN_FILE="./main.cpp"
-OUTPUT_FILENAME="./tmp/Engine"
+MAIN_FILE="../main.cpp"
+OUTPUT_FILENAME="../tmp/Engine"
 
 COMPILE_FLAGS="-Wall -O2"
-HEADER_DIR="./include/"
-SOURCE_DIR="./src/"
+HEADER_DIR="../include/"
+SOURCE_DIR="../src/"
 
 ###
 # Remove existent .o

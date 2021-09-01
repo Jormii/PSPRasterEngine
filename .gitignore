@@ -3,4 +3,9 @@
 /tmp/
 
 *.o
+
+*.PBP
+*.elf
+*.SFO
+
 *.obj
