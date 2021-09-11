@@ -39,6 +39,40 @@ Vec4f Vec4f::BarycentricInterpolation(const Vec4f &u, const Vec4f &v, const Vec4
     return weights.x * u + weights.y * v + weights.z * w;
 }
 
+float_psp &Vec4f::operator()(size_t i)
+{
+    switch (i)
+    {
+    case 0:
+        return x;
+    case 1:
+        return y;
+    case 2:
+        return z;
+    case 3:
+        return w;
+    default:
+        exit(-1);
+    }
+}
+
+float_psp Vec4f::operator()(size_t i) const
+{
+    switch (i)
+    {
+    case 0:
+        return x;
+    case 1:
+        return y;
+    case 2:
+        return z;
+    case 3:
+        return w;
+    default:
+        exit(-1);
+    }
+}
+
 Vec4f operator+(const Vec4f &u, const Vec4f &v)
 {
     return Vec4f{

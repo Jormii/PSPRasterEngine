@@ -23,6 +23,8 @@ struct Vec3f
     static Vec3f Cross(const Vec3f &u, const Vec3f &v);
 
     Vec3f operator-() const;
+    float_psp &operator()(size_t i);
+    float_psp operator()(size_t i) const;
     friend Vec3f operator+(const Vec3f &u, const Vec3f &v);
     friend Vec3f operator-(const Vec3f &u, const Vec3f &v);
     friend Vec3f operator*(float_psp scalar, const Vec3f &v);

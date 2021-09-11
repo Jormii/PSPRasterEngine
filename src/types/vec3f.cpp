@@ -61,6 +61,36 @@ Vec3f Vec3f::operator-() const
     return copy;
 }
 
+float_psp &Vec3f::operator()(size_t i)
+{
+    switch (i)
+    {
+    case 0:
+        return x;
+    case 1:
+        return y;
+    case 2:
+        return z;
+    default:
+        exit(-1); // TODO: HMM
+    }
+}
+
+float Vec3f::operator()(size_t i) const
+{
+    switch (i)
+    {
+    case 0:
+        return x;
+    case 1:
+        return y;
+    case 2:
+        return z;
+    default:
+        exit(-1); // TODO: HMM
+    }
+}
+
 Vec3f operator+(const Vec3f &u, const Vec3f &v)
 {
     return Vec3f{

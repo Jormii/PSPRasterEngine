@@ -24,6 +24,8 @@ struct Vec4f
     static Vec4f Interpolate(const Vec4f &u, const Vec4f &v, float_psp t);
     static Vec4f BarycentricInterpolation(const Vec4f &u, const Vec4f &v, const Vec4f &w, const Vec3f &weights);
 
+    float_psp &operator()(size_t i);
+    float_psp operator()(size_t i) const;
     friend Vec4f operator+(const Vec4f &u, const Vec4f &v);
     friend Vec4f operator-(const Vec4f &u, const Vec4f &v);
     friend Vec4f operator*(float_psp scalar, const Vec4f &v);
