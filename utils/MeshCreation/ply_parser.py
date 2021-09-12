@@ -28,13 +28,20 @@ def _write_vertices(mesh, plydata):
 
 def _write_colors(mesh, plydata):
     vertex_data = plydata["vertex"]
-    R = vertex_data["red"]
-    G = vertex_data["green"]
-    B = vertex_data["blue"]
+    vertex_count = len(vertex_data["x"])
 
-    vertex_count = len(R)
-    for i in range(vertex_count):
-        mesh.colors.append(Vec3(R[i], G[i], B[i], vec_type=int))
+    if "red" not in vertex_data:
+        # No color information. Paint white
+        white = Vec3(255, 255, 255, vec_type=int)
+        for i in range(vertex_count):
+            mesh.colors.append(white)
+    else:
+        R = vertex_data["red"]
+        G = vertex_data["green"]
+        B = vertex_data["blue"]
+
+        for i in range(vertex_count):
+            mesh.colors.append(Vec3(R[i], G[i], B[i], vec_type=int))
 
 
 def _write_triangles(mesh, plydata):

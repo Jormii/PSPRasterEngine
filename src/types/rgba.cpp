@@ -27,6 +27,22 @@ Vec4f RGBA::AsVec4f() const
         static_cast<float_psp>(opacity)};
 }
 
+RGBA RGBA::Grayscale(float_psp scalar)
+{
+    float_psp clipped{scalar};
+    if (scalar > 1.0f)
+    {
+        clipped = 1.0f;
+    }
+    else if (scalar < 0.0f)
+    {
+        clipped = 0.0f;
+    }
+
+    uint8_psp grey{static_cast<uint8_psp>(255.0f * clipped)};
+    return RGBA(grey, grey, grey);
+}
+
 RGBA RGBA::Interpolate(const RGBA &c1, const RGBA &c2, float_psp t)
 {
     Vec4f c1F{static_cast<float_psp>(c1.r), static_cast<float_psp>(c1.g), static_cast<float_psp>(c1.b), static_cast<float_psp>(c1.opacity)};

@@ -21,6 +21,7 @@ struct RGBA
 
     Vec4f AsVec4f() const;
 
+    static RGBA Grayscale(float_psp scalar);
     static RGBA Interpolate(const RGBA &c1, const RGBA &c2, float_psp t);
     static RGBA BarycentricInterpolation(const RGBA &c1, const RGBA &c2, const RGBA &c3, const Vec3f &weights);
 
