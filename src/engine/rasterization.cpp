@@ -91,13 +91,19 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
                     baryCoords.y * buffer[tri.y].position.z +
                     baryCoords.z * buffer[tri.z].position.z};
 
+                Vec3f normal{Vec3f::BarycentricInterpolation(
+                    buffer[tri.x].normal,
+                    buffer[tri.y].normal,
+                    buffer[tri.z].normal,
+                    baryCoords)};
+
                 RGBA color{RGBA::BarycentricInterpolation(
                     buffer[tri.x].color,
                     buffer[tri.y].color,
                     buffer[tri.z].color,
                     baryCoords)};
 
-                Fragment f{x, y, depth, color};
+                Fragment f{x, y, depth, normal, color};
                 fragments.push_back(f);
             }
         }

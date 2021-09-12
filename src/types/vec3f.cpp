@@ -51,6 +51,11 @@ Vec3f Vec3f::Cross(const Vec3f &u, const Vec3f &v)
         u.x * v.y - u.y * v.x};
 }
 
+Vec3f Vec3f::BarycentricInterpolation(const Vec3f &u, const Vec3f &v, const Vec3f &w, const Vec3f &weights)
+{
+    return weights.x * u + weights.y * v + weights.z * w;
+}
+
 Vec3f Vec3f::operator-() const
 {
     Vec3f copy{*this};

@@ -10,10 +10,11 @@
 struct VertexData
 {
     Vec3f position;
+    Vec3f normal;
     RGBA color;
 
     VertexData();
-    VertexData(const Vec3f &position, const RGBA &color);
+    VertexData(const Vec3f &position, const Vec3f &normal, const RGBA &color);
 };
 
 struct Mesh

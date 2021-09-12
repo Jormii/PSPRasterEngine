@@ -19,7 +19,11 @@ void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, Buffer
     Vec4f vHomo{vertexData.position, 1.0f};
     Vec4f vertexTransformed{matrices.mvp * vHomo};
 
+    Vec4f nHomo{vertexData.normal, 0.0f};
+    Vec4f nT{matrices.normalMat * nHomo};
+
     out->positionHomo = vertexTransformed;
+    out->normal = Vec3f{nT.x, nT.y, nT.z}.Normalize();
     out->color = vertexData.color;
 }
 

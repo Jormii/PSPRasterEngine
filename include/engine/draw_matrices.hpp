@@ -9,6 +9,7 @@ struct DrawMatrices
     const Mat4f &view;
     const Mat4f &projection;
     const Mat4f mvp;
+    Mat4f normalMat;
 
     DrawMatrices(const Mat4f &model, const Mat4f &view, const Mat4f &projection);
 };

@@ -21,6 +21,7 @@ struct Vec3f
 
     static float_psp Dot(const Vec3f &u, const Vec3f &v);
     static Vec3f Cross(const Vec3f &u, const Vec3f &v);
+    static Vec3f BarycentricInterpolation(const Vec3f &u, const Vec3f &v, const Vec3f &w, const Vec3f &weights);
 
     Vec3f operator-() const;
     float_psp &operator()(size_t i);
