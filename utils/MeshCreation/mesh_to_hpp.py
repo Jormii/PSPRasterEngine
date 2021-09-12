@@ -18,17 +18,20 @@ def _write_vertex_data(hpp_file, mesh):
     assert mesh.vertices is not None, "Mesh has no vertices"
 
     vertices = mesh.vertices
+    normals = mesh.normals
     colors = _get_mesh_colors(mesh)
 
-    assert len(vertices) == len(colors), "Vertex count mismatch"
+    for data in [normals, colors]:
+        assert len(vertices) == len(data), "Vertex count mismatch"
 
     hpp_file.write("VertexData {}VertexData[]{{\n".format(mesh.name))
     for i in range(len(vertices)):
         v = vertices[i]
+        n = normals[i]
         c = colors[i]
 
-        hpp_file.write("\tVertexData{{{}, {}}}".format(
-            _vec3f_string(v), _rgba_string(c)))
+        hpp_file.write("\tVertexData{{{}, {}, {}}}".format(
+            _vec3f_string(v), _vec3f_string(n), _rgba_string(c)))
         if i != len(mesh.vertices) - 1:
             hpp_file.write(",\n")
 

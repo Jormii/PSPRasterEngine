@@ -9,7 +9,6 @@
 
 #include "types.hpp"
 
-#include "./Sample Meshes/cube.hpp"
 #include "./Sample Meshes/tetra.hpp"
 
 PSP_MODULE_INFO("Engine Test", 0, 1, 0);

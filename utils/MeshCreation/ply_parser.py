@@ -9,6 +9,7 @@ def parse_ply(ply_file):
     plydata = PlyData.read(ply_file)
 
     _write_vertices(mesh, plydata)
+    _write_normals(mesh, plydata)
     _write_colors(mesh, plydata)
     _write_triangles(mesh, plydata)
 
@@ -24,6 +25,17 @@ def _write_vertices(mesh, plydata):
     vertex_count = len(X)
     for i in range(vertex_count):
         mesh.vertices.append(Vec3(X[i], Y[i], Z[i]))
+
+
+def _write_normals(mesh, plydata):
+    vertex_data = plydata["vertex"]
+    Nx = vertex_data["nx"]
+    Ny = vertex_data["ny"]
+    Nz = vertex_data["nz"]
+
+    vertex_count = len(Nx)
+    for i in range(vertex_count):
+        mesh.normals.append(Vec3(Nx[i], Ny[i], Nz[i]))
 
 
 def _write_colors(mesh, plydata):

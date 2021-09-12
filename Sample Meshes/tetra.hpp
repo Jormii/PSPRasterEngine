@@ -1,23 +1,28 @@
-#ifndef TETRA_HPP
-#define TETRA_HPP
+#ifndef PLY_MESH_HPP
+#define PLY_MESH_HPP
 
 #include "mesh.hpp"
 
-size_t tetraVertexCount{4};
-size_t tetraTriangleCount{4};
-
 VertexData tetraVertexData[]{
-    VertexData{Vec3f{0.0f, -1.0f, -1.0f}, RGBA{255, 0, 0}},
-    VertexData{Vec3f{0.866025f, -1.0f, 0.5f}, RGBA{0, 255, 0}},
-    VertexData{Vec3f{-0.866025f, -1.0f, 0.5f}, RGBA{0, 0, 255}},
-    VertexData{Vec3f{0.0f, 1.0f, 0.0f}, RGBA{255, 255, 255}}};
+	VertexData{Vec3f{0.0f, -1.0f, -1.0f}, Vec3f{0.8401679992675781f, 0.24253599345684052f, -0.48507100343704224f}, RGBA{0, 255, 0, 255}},
+	VertexData{Vec3f{0.0f, 1.0f, 0.0f}, Vec3f{0.8401679992675781f, 0.24253599345684052f, -0.48507100343704224f}, RGBA{255, 251, 251, 255}},
+	VertexData{Vec3f{0.8660249710083008f, -1.0f, 0.5f}, Vec3f{0.8401679992675781f, 0.24253599345684052f, -0.48507100343704224f}, RGBA{255, 0, 0, 255}},
+	VertexData{Vec3f{0.0f, -1.0f, -1.0f}, Vec3f{0.0f, -1.0f, -0.0f}, RGBA{0, 255, 0, 255}},
+	VertexData{Vec3f{0.8660249710083008f, -1.0f, 0.5f}, Vec3f{0.0f, -1.0f, -0.0f}, RGBA{255, 0, 0, 255}},
+	VertexData{Vec3f{-0.8660249710083008f, -1.0f, 0.5f}, Vec3f{0.0f, -1.0f, -0.0f}, RGBA{255, 0, 0, 255}},
+	VertexData{Vec3f{0.8660249710083008f, -1.0f, 0.5f}, Vec3f{-0.0f, 0.24253599345684052f, 0.9701430201530457f}, RGBA{255, 0, 0, 255}},
+	VertexData{Vec3f{0.0f, 1.0f, 0.0f}, Vec3f{-0.0f, 0.24253599345684052f, 0.9701430201530457f}, RGBA{255, 251, 251, 255}},
+	VertexData{Vec3f{-0.8660249710083008f, -1.0f, 0.5f}, Vec3f{-0.0f, 0.24253599345684052f, 0.9701430201530457f}, RGBA{255, 0, 0, 255}},
+	VertexData{Vec3f{-0.8660249710083008f, -1.0f, 0.5f}, Vec3f{-0.8401679992675781f, 0.24253599345684052f, -0.48507100343704224f}, RGBA{255, 0, 0, 255}},
+	VertexData{Vec3f{0.0f, 1.0f, 0.0f}, Vec3f{-0.8401679992675781f, 0.24253599345684052f, -0.48507100343704224f}, RGBA{255, 251, 251, 255}},
+	VertexData{Vec3f{0.0f, -1.0f, -1.0f}, Vec3f{-0.8401679992675781f, 0.24253599345684052f, -0.48507100343704224f}, RGBA{0, 255, 0, 255}}};
 
 Vec3i tetraTriangles[]{
-    Vec3i{1, 2, 0},
-    Vec3i{0, 3, 1},
-    Vec3i{1, 3, 2},
-    Vec3i{2, 3, 0}};
+	Vec3i{0, 1, 2},
+	Vec3i{3, 4, 5},
+	Vec3i{6, 7, 8},
+	Vec3i{9, 10, 11}};
 
-Mesh tetraMesh{tetraVertexCount, tetraTriangleCount, tetraVertexData, tetraTriangles};
+Mesh tetraMesh{12, 4, tetraVertexData, tetraTriangles};
 
 #endif

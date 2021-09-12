@@ -43,12 +43,17 @@ int main()
     float_psp cameraX{distance * cosf(angle)};
     float_psp cameraZ{distance * sinf(angle)};
 
+    std::cout << cameraX << "\n";
+    std::cout << cameraZ << "\n";
+
     Mat4f model{Mat4f::IDENTITY};
     Mat4f view{LookAt(
         Vec3f{cameraX, 0.0f, cameraZ},
         Vec3f{0.0f, 0.0f, 0.0f},
         Vec3f{0.0f, 1.0f, 0.0f})};
     Mat4f projection{PerspectiveProjFov(WIDTH, HEIGHT, 60.0f * (M_PI / 180), 1.0f, 10.0f)};
+
+    std::cout << view << "\n";
 
     DrawMatrices matrices{model, view, projection};
 
