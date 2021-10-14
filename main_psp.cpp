@@ -28,6 +28,15 @@ void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, Buffer
     out->positionHomo = vertexTransformed;
     out->normal = Vec3f{nT.x, nT.y, nT.z}.Normalize();
     out->color = vertexData.color;
+
+    // Out color
+    Vec3f v{(matrices.mv * vHomo).DivideByW().Normalize()};
+    float_psp dot{Vec3f::Dot(-v, out->normal)};
+    uint8_psp dotUint{std::max(
+        static_cast<uint8_psp>(0),
+        static_cast<uint8_psp>(255.0f * dot))};
+
+    out->color = RGBA(dotUint, dotUint, dotUint);
 }
 
 void CustomFS(const Fragment &fragment, FSOut &out)
@@ -45,7 +54,7 @@ int main()
 
     // Set up matrices
     float_psp angle{0.25 * M_PI};
-    float_psp distance{4.0f};
+    float_psp distance{3.5f};
     float_psp cameraX{distance * cosf(angle)};
     float_psp cameraZ{distance * sinf(angle)};
 

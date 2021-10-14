@@ -1,5 +1,5 @@
-#ifndef PLY_MESH_HPP
-#define PLY_MESH_HPP
+#ifndef TETRA_MESH_HPP
+#define TETRA_MESH_HPP
 
 #include "mesh.hpp"
 
