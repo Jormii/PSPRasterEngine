@@ -10,6 +10,7 @@
 #include "types.hpp"
 
 #include "./Sample Meshes/tetra.hpp"
+#include "./Sample Meshes/monkey.hpp"
 
 PSP_MODULE_INFO("Engine Test", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
@@ -28,21 +29,18 @@ void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, Buffer
     out->positionHomo = vertexTransformed;
     out->normal = Vec3f{nT.x, nT.y, nT.z}.Normalize();
     out->color = vertexData.color;
-
-    // Out color
-    Vec3f v{(matrices.mv * vHomo).DivideByW().Normalize()};
-    float_psp dot{Vec3f::Dot(-v, out->normal)};
-    uint8_psp dotUint{std::max(
-        static_cast<uint8_psp>(0),
-        static_cast<uint8_psp>(255.0f * dot))};
-
-    out->color = RGBA(dotUint, dotUint, dotUint);
 }
 
 void CustomFS(const Fragment &fragment, FSOut &out)
 {
     out.depth = fragment.depth;
-    out.color = fragment.color;
+
+    const Vec3f &p{fragment.viewPos};
+    const Vec3f &n{fragment.normal};
+    float_psp dot{std::max(0.0f, Vec3f::Dot(-p.Normalized(), n.Normalized()))};
+    uint8_psp dot_col{static_cast<uint8_psp>(255.0f * dot)};
+
+    out.color = RGBA{dot_col, dot_col, dot_col};
 }
 
 int main()
@@ -70,7 +68,7 @@ int main()
     // Draw call
     ClearColorBuffer(RGBA{0, 0, 0}); // Black
     ClearDepthBuffer(9999.0f);
-    Draw(tetraMesh, matrices, &CustomVS, &CustomFS);
+    Draw(monkeyMesh, matrices, &CustomVS, &CustomFS);
 
     SceCtrlData pad;
     while (true)

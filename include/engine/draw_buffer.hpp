@@ -10,6 +10,7 @@
 struct BufferVertexData
 {
     Vec3f position;
+    Vec3f viewPos;
     Vec4f positionHomo;
     Vec3f normal;
     RGBA color;

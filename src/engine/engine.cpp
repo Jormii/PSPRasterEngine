@@ -71,6 +71,7 @@ void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, Fragm
     {
         vs(matrices, mesh.vertexData[i], buffer + i);
         (buffer + i)->position = (buffer + i)->positionHomo.DivideByW();
+        (buffer + i)->viewPos = (matrices.mv * Vec4f{mesh.vertexData[i].position, 1.0f}).DivideByW();
     }
 
     // Rasterize
