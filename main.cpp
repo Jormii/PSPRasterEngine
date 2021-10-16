@@ -1,12 +1,23 @@
 #include <cmath>
 
-#include "./include/engine/engine.hpp"
-#include "./include/engine/utils.hpp"
+#ifdef PSP
+#include <pspgu.h>
+#include <pspctrl.h>
+#include <pspkernel.h>
+#endif
+
+#include "engine.hpp"
+#include "utils.hpp"
 
 #include "./Sample Meshes/tetra.hpp"
 
-// #define REDIRECT
-#ifdef REDIRECT
+#ifdef PSP
+constexpr size_t WIDTH{512};
+constexpr size_t HEIGHT{272};
+
+PSP_MODULE_INFO("Engine Test", 0, 1, 0);
+PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
+#elif REDIRECT
 constexpr size_t WIDTH{140};
 constexpr size_t HEIGHT{35};
 #else
@@ -30,11 +41,22 @@ void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, Buffer
 void CustomFS(const Fragment &fragment, FSOut &out)
 {
     out.depth = fragment.depth;
-    out.color = fragment.color;
+
+    const Vec3f &p{fragment.viewPos};
+    const Vec3f &n{fragment.normal};
+    float_psp dot{std::max(0.0f, Vec3f::Dot(-p.Normalized(), n.Normalized()))};
+    uint8_psp dot_col{static_cast<uint8_psp>(255.0f * dot)};
+
+    out.color = RGBA{dot_col, dot_col, dot_col};
 }
 
 int main()
 {
+#ifdef PSP
+    // Needed for now
+    pspDebugScreenInit();
+#endif
+
     InitializeContext(WIDTH, HEIGHT);
 
     // Set up matrices
@@ -57,8 +79,20 @@ int main()
     ClearDepthBuffer(9999.0f);
     Draw(tetraMesh, matrices, &CustomVS, &CustomFS);
 
-    // Render
+#ifdef PSP
+    SceCtrlData pad;
+    while (true)
+    {
+        sceCtrlReadBufferPositive(&pad, 1);
+        if (pad.Buttons & PSP_CTRL_CROSS)
+        {
+            break;
+        }
+    }
+    sceKernelExitGame();
+#else
     RenderToConsole();
+#endif
 
     return 0;
 }
