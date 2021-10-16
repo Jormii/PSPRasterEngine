@@ -29,6 +29,7 @@ struct Vec4f
     friend Vec4f operator+(const Vec4f &u, const Vec4f &v);
     friend Vec4f operator-(const Vec4f &u, const Vec4f &v);
     friend Vec4f operator*(float_psp scalar, const Vec4f &v);
+    friend Vec4f operator*(const Vec4f &u, const Vec4f &v);
 
     friend std::ostream &operator<<(std::ostream &out, const Vec4f &v);
 };

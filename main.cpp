@@ -62,7 +62,7 @@ void CustomFS(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out
 
         float_psp ratio{light.r / r};
         Vec4f shade{ratio * ratio * light.color};
-        outColor = outColor + dot * shade;
+        outColor = outColor + dot * shade * fragment.color;
     }
 
     out.color = outColor;
