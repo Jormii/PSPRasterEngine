@@ -10,6 +10,7 @@
 #include "utils.hpp"
 
 #include "./Sample Meshes/tetra.hpp"
+#include "./Sample Meshes/plane.hpp"
 
 #ifdef PSP
 constexpr size_t WIDTH{512};
@@ -68,6 +69,36 @@ void CustomFS(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out
     out.color = outColor;
 }
 
+void PlaneFS(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out, const bool *activeLights, const PointLight *lights)
+{
+    out.depth = fragment.depth;
+
+    Vec4f outColor;
+    for (size_t i{0}; i < N_LIGHTS; ++i)
+    {
+        if (!activeLights[i])
+        {
+            continue;
+        }
+
+        const PointLight &light{lights[i]};
+        Vec3f lPos{(matrices.view * Vec4f{light.position, 1.0f}).DivideByW()};
+        Vec3f l{lPos - fragment.viewPos};
+        float_psp norm{l.Magnitude()};
+
+        float_psp r{std::max(0.001f, sqrtf(norm * norm))};
+        Vec3f l_u{l / r};
+
+        float_psp dot{Vec3f::Dot(fragment.normal, l_u)}; // TODO: Normals are wrong
+
+        float_psp ratio{light.r / r};
+        Vec4f shade{ratio * ratio * light.color};
+        outColor = outColor + dot * shade;
+    }
+
+    out.color = outColor;
+}
+
 int main()
 {
 #ifdef PSP
@@ -79,7 +110,7 @@ int main()
 
     // Set up matrices
     float_psp angle{0.25 * M_PI};
-    float_psp distance{3.5f};
+    float_psp distance{4.0f};
     float_psp cameraX{distance * cosf(angle)};
     float_psp cameraZ{distance * sinf(angle)};
 
@@ -88,7 +119,7 @@ int main()
         Vec3f{cameraX, 0.0f, cameraZ},
         Vec3f{0.0f, 0.0f, 0.0f},
         Vec3f{0.0f, 1.0f, 0.0f})};
-    Mat4f projection{PerspectiveProjFov(WIDTH, HEIGHT, 60.0f * (M_PI / 180), 1.0f, 10.0f)};
+    Mat4f projection{PerspectiveProjFov(WIDTH, HEIGHT, 40.0f * (M_PI / 180), 1.0f, 10.0f)};
 
     DrawMatrices matrices{model, view, projection};
 
@@ -108,6 +139,7 @@ int main()
     ClearColorBuffer(RGBA{0, 0, 0}); // Black
     ClearDepthBuffer(9999.0f);
     Draw(tetraMesh, matrices, &CustomVS, &CustomFS);
+    Draw(planeMesh, matrices, &CustomVS, &PlaneFS);
 
 #ifdef PSP
     SceCtrlData pad;

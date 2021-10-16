@@ -81,6 +81,11 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
     {
         for (int_psp y{lowPixel.y}; y <= highPixel.y; ++y)
         {
+            if (x < 0 || x >= static_cast<int>(width) || y < 0 || y >= static_cast<int>(height))
+            {
+                continue;
+            }
+
             Vec2f pixelCenter{x + 0.5f, y + 0.5f};
             if (PixelWithinTriangle(pixelCenter, edgeFuncs, topEdgeMask, leftEdgeMask))
             {
