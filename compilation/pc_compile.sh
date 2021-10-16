@@ -39,7 +39,7 @@ done
 
 echo ""
 
-ENGINE_FILES=("utils" "draw_matrices" "edge" "fragment" "rasterization" "engine")
+ENGINE_FILES=("utils" "light" "draw_matrices" "edge" "fragment" "rasterization" "engine")
 for ENGINE_SRC in ${ENGINE_FILES[@]}; do
     echo g++ -c $SOURCE_DIR$ENGINE_DIR$ENGINE_SRC".cpp" $COMPILE_FLAGS $INCLUDE_PATHS
     g++ -c $SOURCE_DIR$ENGINE_DIR$ENGINE_SRC".cpp" $COMPILE_FLAGS $INCLUDE_PATHS

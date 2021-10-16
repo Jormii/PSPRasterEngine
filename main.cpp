@@ -25,7 +25,7 @@ constexpr size_t WIDTH{48};
 constexpr size_t HEIGHT{14};
 #endif
 
-void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, BufferVertexData *out)
+void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, BufferVertexData *out, const bool *activeLights, const PointLight *lights)
 {
     Vec4f vHomo{vertexData.position, 1.0f};
     Vec4f vertexTransformed{matrices.mvp * vHomo};
@@ -38,16 +38,34 @@ void CustomVS(const DrawMatrices &matrices, const VertexData &vertexData, Buffer
     out->color = vertexData.color;
 }
 
-void CustomFS(const Fragment &fragment, FSOut &out)
+void CustomFS(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out, const bool *activeLights, const PointLight *lights)
 {
     out.depth = fragment.depth;
 
-    const Vec3f &p{fragment.viewPos};
-    const Vec3f &n{fragment.normal};
-    float_psp dot{std::max(0.0f, Vec3f::Dot(-p.Normalized(), n.Normalized()))};
-    uint8_psp dot_col{static_cast<uint8_psp>(255.0f * dot)};
+    Vec4f outColor;
+    for (size_t i{0}; i < N_LIGHTS; ++i)
+    {
+        if (!activeLights[i])
+        {
+            continue;
+        }
 
-    out.color = RGBA{dot_col, dot_col, dot_col};
+        const PointLight &light{lights[i]};
+        Vec3f lPos{(matrices.view * Vec4f{light.position, 1.0f}).DivideByW()};
+        Vec3f l{lPos - fragment.viewPos};
+        float_psp norm{l.Magnitude()};
+
+        float_psp r{std::max(0.001f, sqrtf(norm * norm))};
+        Vec3f l_u{l / r};
+
+        float_psp dot{Vec3f::Dot(fragment.normal, -l_u)};
+
+        float_psp ratio{light.r / r};
+        Vec4f shade{ratio * ratio * light.color};
+        outColor = outColor + dot * shade;
+    }
+
+    out.color = outColor;
 }
 
 int main()
@@ -73,6 +91,18 @@ int main()
     Mat4f projection{PerspectiveProjFov(WIDTH, HEIGHT, 60.0f * (M_PI / 180), 1.0f, 10.0f)};
 
     DrawMatrices matrices{model, view, projection};
+
+    // Set up lights
+    PointLight *light;
+    light = ActivateLight(0);
+    light->position = Vec3f{0.0f, 0.0f, -1.0f};
+    light->color = Vec4f{1.0f, 1.0f, 0.0f, 1.0f};
+    light->r = 1.0f;
+
+    light = ActivateLight(1);
+    light->position = Vec3f{-1.0f, 1.0f, -0.5f};
+    light->color = Vec4f{0.0f, 1.0f, 1.0f, 1.0f};
+    light->r = 1.5f;
 
     // Draw call
     ClearColorBuffer(RGBA{0, 0, 0}); // Black

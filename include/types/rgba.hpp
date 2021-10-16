@@ -21,9 +21,12 @@ struct RGBA
 
     Vec4f AsVec4f() const;
 
+    static RGBA Vec4fAsRGBA(const Vec4f &v);
     static RGBA Grayscale(float_psp scalar);
     static RGBA Interpolate(const RGBA &c1, const RGBA &c2, float_psp t);
     static RGBA BarycentricInterpolation(const RGBA &c1, const RGBA &c2, const RGBA &c3, const Vec3f &weights);
+
+    friend RGBA operator*(float_psp scalar, const RGBA &color);
 
     friend std::ostream &operator<<(std::ostream &out, const RGBA &rgba);
 

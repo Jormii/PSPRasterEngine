@@ -16,6 +16,9 @@ struct EngineContext
 
     RGBA *colorBuffer;
     float_psp *depthBuffer;
+
+    bool activeLights[N_LIGHTS];
+    PointLight lights[N_LIGHTS];
 } context;
 
 size_t BufferIndex(size_t x, size_t y);
@@ -45,6 +48,11 @@ void InitializeContext(size_t width, size_t height)
     context.colorBuffer = reinterpret_cast<RGBA *>(0x04000000);
     context.depthBuffer = new float_psp[context.bufferSize];
 #endif
+
+    for (size_t i{0}; i < N_LIGHTS; ++i)
+    {
+        context.activeLights[i] = false;
+    }
 }
 
 void ClearColorBuffer(const RGBA &color)
@@ -63,13 +71,34 @@ void ClearDepthBuffer(float_psp depth)
     }
 }
 
+PointLight *ActivateLight(size_t index)
+{
+    if (index > N_LIGHTS)
+    {
+        return nullptr;
+    }
+
+    context.activeLights[index] = true;
+    return &context.lights[index];
+}
+
+void DeactivateLight(size_t index)
+{
+    if (index > N_LIGHTS)
+    {
+        return;
+    }
+
+    context.activeLights[index] = false;
+}
+
 void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, FragmentShader fs)
 {
     // Vertex shading
     BufferVertexData *buffer{new BufferVertexData[mesh.vertexCount]};
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
-        vs(matrices, mesh.vertexData[i], buffer + i);
+        vs(matrices, mesh.vertexData[i], buffer + i, context.activeLights, context.lights);
         (buffer + i)->position = (buffer + i)->positionHomo.DivideByW();
         (buffer + i)->viewPos = (matrices.mv * Vec4f{mesh.vertexData[i].position, 1.0f}).DivideByW();
     }
@@ -81,12 +110,12 @@ void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, Fragm
     FSOut fsOut;
     for (const Fragment &fragment : fragments)
     {
-        fs(fragment, fsOut);
+        fs(matrices, fragment, fsOut, context.activeLights, context.lights);
 
         size_t bufferIndex{BufferIndex(fragment.xScreenCoord, fragment.yScreenCoord)};
         if (fsOut.depth < context.depthBuffer[bufferIndex])
         {
-            context.colorBuffer[bufferIndex] = fsOut.color;
+            context.colorBuffer[bufferIndex] = RGBA::Vec4fAsRGBA(fsOut.color);
             context.depthBuffer[bufferIndex] = fsOut.depth;
         }
     }

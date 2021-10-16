@@ -3,18 +3,18 @@
 
 #include <iostream>
 
-#include "rgba.hpp"
 #include "vec3i.hpp"
 #include "vec3f.hpp"
+#include "vec4f.hpp"
 
 struct VertexData
 {
     Vec3f position;
     Vec3f normal;
-    RGBA color;
+    Vec4f color;
 
     VertexData();
-    VertexData(const Vec3f &position, const Vec3f &normal, const RGBA &color);
+    VertexData(const Vec3f &position, const Vec3f &normal, const Vec4f &color);
 };
 
 struct Mesh

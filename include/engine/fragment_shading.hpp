@@ -2,16 +2,16 @@
 #define FRAGMENT_SHADING_HPP
 
 #include "fragment.hpp"
+#include "draw_matrices.hpp"
 
 #include "types.hpp"
-#include "rgba.hpp"
 
 struct FSOut
 {
-    RGBA color;
+    Vec4f color;
     float_psp depth;
 };
 
-typedef void (*FragmentShader)(const Fragment &fragment, FSOut &out);
+typedef void (*FragmentShader)(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out, const bool *activeLights, const PointLight *lights);
 
 #endif

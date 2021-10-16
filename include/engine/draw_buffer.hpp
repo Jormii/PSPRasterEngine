@@ -3,7 +3,6 @@
 
 #include "types.hpp"
 #include "mesh.hpp"
-#include "rgba.hpp"
 #include "vec3f.hpp"
 #include "vec4f.hpp"
 
@@ -13,7 +12,7 @@ struct BufferVertexData
     Vec3f viewPos;
     Vec4f positionHomo;
     Vec3f normal;
-    RGBA color;
+    Vec4f color;
 };
 
 #endif

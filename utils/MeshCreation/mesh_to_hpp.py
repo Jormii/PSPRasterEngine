@@ -72,7 +72,8 @@ def _vec3i_string(vector):
 
 
 def _rgba_string(vector):
-    return "RGBA{{{}, {}, {}, 255}}".format(vector.x, vector.y, vector.z)
+    return "Vec4f{{{}f, {}f, {}f, 1.0f}}".format(
+        vector.x / 255.0, vector.y / 255.0, vector.z / 255.0)
 
 
 def _write_mesh_initialization(hpp_file, mesh):

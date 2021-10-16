@@ -27,6 +27,15 @@ Vec4f RGBA::AsVec4f() const
         static_cast<float_psp>(opacity)};
 }
 
+RGBA RGBA::Vec4fAsRGBA(const Vec4f &v)
+{
+    return RGBA{
+        static_cast<uint8_psp>(255.0f * std::max(0.0f, std::min(1.0f, v.x))),
+        static_cast<uint8_psp>(255.0f * std::max(0.0f, std::min(1.0f, v.y))),
+        static_cast<uint8_psp>(255.0f * std::max(0.0f, std::min(1.0f, v.z))),
+        static_cast<uint8_psp>(255.0f * std::max(0.0f, std::min(1.0f, v.w)))};
+}
+
 RGBA RGBA::Grayscale(float_psp scalar)
 {
     float_psp clipped{scalar};
@@ -66,6 +75,21 @@ RGBA RGBA::BarycentricInterpolation(const RGBA &c1, const RGBA &c2, const RGBA &
         static_cast<uint8_psp>(interpolatedVec4.y),
         static_cast<uint8_psp>(interpolatedVec4.z),
         static_cast<uint8_psp>(interpolatedVec4.w)};
+}
+
+RGBA operator*(float_psp scalar, const RGBA &color)
+{
+    Vec4f asVec4{scalar * color.AsVec4f()};
+    for (size_t i{0}; i < 4; ++i)
+    {
+        asVec4(i) = std::max(0.0f, std::min(255.0f, asVec4(i)));
+    }
+
+    return RGBA{
+        static_cast<uint8_psp>(asVec4.x),
+        static_cast<uint8_psp>(asVec4.y),
+        static_cast<uint8_psp>(asVec4.z),
+        static_cast<uint8_psp>(asVec4.w)};
 }
 
 std::ostream &operator<<(std::ostream &out, const RGBA &rgba)

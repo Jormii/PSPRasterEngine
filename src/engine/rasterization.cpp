@@ -103,7 +103,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
                     buffer[tri.z].normal,
                     baryCoords)};
 
-                RGBA color{RGBA::BarycentricInterpolation(
+                Vec4f color{Vec4f::BarycentricInterpolation(
                     buffer[tri.x].color,
                     buffer[tri.y].color,
                     buffer[tri.z].color,
