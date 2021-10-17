@@ -2,6 +2,7 @@
 #define FRAGMENT
 
 #include "types.hpp"
+#include "vec2f.hpp"
 #include "vec3f.hpp"
 #include "vec4f.hpp"
 
@@ -14,8 +15,9 @@ struct Fragment
     Vec3f viewPos;
     Vec3f normal;
     Vec4f color;
+    Vec2f uv;
 
-    Fragment(int_psp xScreenCoord, int_psp yScreenCoord, float_psp depth, const Vec3f &viewPos, const Vec3f &normal, const Vec4f &color);
+    Fragment(int_psp xScreenCoord, int_psp yScreenCoord, float_psp depth, const Vec3f &viewPos, const Vec3f &normal, const Vec4f &color, const Vec2f &uv);
 };
 
 #endif

@@ -1,6 +1,7 @@
 #include "mesh.hpp"
 
-VertexData::VertexData(const Vec3f &position, const Vec3f &normal, const Vec4f &color) : position{position}, normal{normal}, color{color}
+VertexData::VertexData(const Vec3f &position, const Vec3f &normal, const Vec4f &color, const Vec2f &uv)
+    : position{position}, normal{normal}, color{color}, uv{uv}
 {
 }
 

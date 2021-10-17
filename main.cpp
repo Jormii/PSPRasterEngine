@@ -10,7 +10,6 @@
 #include "utils.hpp"
 
 #include "./Sample Meshes/plane.hpp"
-#include "./Sample Meshes/tetra.hpp"
 #include "./Sample Meshes/cube.hpp"
 
 #ifdef PSP
@@ -109,7 +108,7 @@ int main()
     // Draw call
     ClearColorBuffer(RGBA{0, 0, 0}); // Black
     ClearDepthBuffer(9999.0f);
-    Draw(tetraMesh, matrices, &CustomVS, &CustomFS);
+    Draw(cubeMesh, matrices, &CustomVS, &CustomFS);
     Draw(planeMesh, matrices, &CustomVS, &CustomFS);
 
 #ifdef PSP

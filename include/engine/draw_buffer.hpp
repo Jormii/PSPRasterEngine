@@ -13,6 +13,7 @@ struct BufferVertexData
     Vec4f positionHomo;
     Vec3f normal;
     Vec4f color;
+    Vec2f uv;
 };
 
 #endif

@@ -20,8 +20,9 @@ def _write_vertex_data(hpp_file, mesh):
     vertices = mesh.vertices
     normals = mesh.normals
     colors = _get_mesh_colors(mesh)
+    uvs = mesh.uvs
 
-    for data in [normals, colors]:
+    for data in [normals, colors, uvs]:
         assert len(vertices) == len(data), "Vertex count mismatch"
 
     hpp_file.write("VertexData {}VertexData[]{{\n".format(mesh.name))
@@ -29,9 +30,10 @@ def _write_vertex_data(hpp_file, mesh):
         v = vertices[i]
         n = normals[i]
         c = colors[i]
+        uv = uvs[i]
 
-        hpp_file.write("\tVertexData{{{}, {}, {}}}".format(
-            _vec3f_string(v), _vec3f_string(n), _rgba_string(c)))
+        hpp_file.write("\tVertexData{{{}, {}, {}, {}}}".format(
+            _vec3f_string(v), _vec3f_string(n), _rgba_string(c), _vec2f_string(uv)))
         if i != len(mesh.vertices) - 1:
             hpp_file.write(",\n")
 
@@ -74,6 +76,10 @@ def _vec3i_string(vector):
 def _rgba_string(vector):
     return "Vec4f{{{}f, {}f, {}f, 1.0f}}".format(
         vector.x / 255.0, vector.y / 255.0, vector.z / 255.0)
+
+
+def _vec2f_string(uv):
+    return "Vec2f{{{}f, {}f}}".format(uv.x, uv.y)
 
 
 def _write_mesh_initialization(hpp_file, mesh):

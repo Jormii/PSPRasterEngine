@@ -3,6 +3,8 @@ from plyfile import PlyData
 from mesh import Mesh
 from vector import Vec2, Vec3
 
+import os
+
 
 def parse_ply(ply_file):
     mesh = Mesh("ply_mesh")
@@ -11,6 +13,7 @@ def parse_ply(ply_file):
     _write_vertices(mesh, plydata)
     _write_normals(mesh, plydata)
     _write_colors(mesh, plydata)
+    _write_uvs(mesh, plydata)
     _write_triangles(mesh, plydata)
 
     return mesh
@@ -54,6 +57,15 @@ def _write_colors(mesh, plydata):
 
         for i in range(vertex_count):
             mesh.colors.append(Vec3(R[i], G[i], B[i], vec_type=int))
+
+
+def _write_uvs(mesh, plydata):
+    vertex_data = plydata["vertex"]
+
+    U = vertex_data["s"]
+    V = vertex_data["t"]
+    for u, v in zip(U, V):
+        mesh.uvs.append(Vec2(u, v))
 
 
 def _write_triangles(mesh, plydata):
