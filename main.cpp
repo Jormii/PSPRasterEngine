@@ -9,8 +9,9 @@
 #include "engine.hpp"
 #include "utils.hpp"
 
-#include "./Sample Meshes/tetra.hpp"
 #include "./Sample Meshes/plane.hpp"
+#include "./Sample Meshes/tetra.hpp"
+#include "./Sample Meshes/cube.hpp"
 
 #ifdef PSP
 constexpr size_t WIDTH{512};
@@ -59,41 +60,11 @@ void CustomFS(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out
         float_psp r{std::max(0.001f, sqrtf(norm * norm))};
         Vec3f l_u{l / r};
 
-        float_psp dot{Vec3f::Dot(fragment.normal, -l_u)};
+        float_psp dot{Vec3f::Dot(fragment.normal, l_u)};
 
         float_psp ratio{light.r / r};
         Vec4f shade{ratio * ratio * light.color};
         outColor = outColor + dot * shade * fragment.color;
-    }
-
-    out.color = outColor;
-}
-
-void PlaneFS(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out, const bool *activeLights, const PointLight *lights)
-{
-    out.depth = fragment.depth;
-
-    Vec4f outColor;
-    for (size_t i{0}; i < N_LIGHTS; ++i)
-    {
-        if (!activeLights[i])
-        {
-            continue;
-        }
-
-        const PointLight &light{lights[i]};
-        Vec3f lPos{(matrices.view * Vec4f{light.position, 1.0f}).DivideByW()};
-        Vec3f l{lPos - fragment.viewPos};
-        float_psp norm{l.Magnitude()};
-
-        float_psp r{std::max(0.001f, sqrtf(norm * norm))};
-        Vec3f l_u{l / r};
-
-        float_psp dot{Vec3f::Dot(fragment.normal, l_u)}; // TODO: Normals are wrong
-
-        float_psp ratio{light.r / r};
-        Vec4f shade{ratio * ratio * light.color};
-        outColor = outColor + dot * shade;
     }
 
     out.color = outColor;
@@ -126,12 +97,12 @@ int main()
     // Set up lights
     PointLight *light;
     light = ActivateLight(0);
-    light->position = Vec3f{0.0f, 0.0f, -1.0f};
+    light->position = Vec3f{1.5f, 0.0f, 1.5f};
     light->color = Vec4f{1.0f, 1.0f, 0.0f, 1.0f};
     light->r = 1.0f;
 
     light = ActivateLight(1);
-    light->position = Vec3f{-1.0f, 1.0f, -0.5f};
+    light->position = Vec3f{2.0f, 1.0f, -0.5f};
     light->color = Vec4f{0.0f, 1.0f, 1.0f, 1.0f};
     light->r = 1.5f;
 
@@ -139,7 +110,7 @@ int main()
     ClearColorBuffer(RGBA{0, 0, 0}); // Black
     ClearDepthBuffer(9999.0f);
     Draw(tetraMesh, matrices, &CustomVS, &CustomFS);
-    Draw(planeMesh, matrices, &CustomVS, &PlaneFS);
+    Draw(planeMesh, matrices, &CustomVS, &CustomFS);
 
 #ifdef PSP
     SceCtrlData pad;

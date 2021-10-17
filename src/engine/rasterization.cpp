@@ -144,9 +144,13 @@ bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_
 
 Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferVertexData *buffer, const EdgeFunction *edgeFuncs)
 {
-    float_psp f0{edgeFuncs[0].Evaluate(pixel) / buffer[tri.x].positionHomo.w};
-    float_psp f1{edgeFuncs[1].Evaluate(pixel) / buffer[tri.y].positionHomo.w};
-    float_psp f2{edgeFuncs[2].Evaluate(pixel) / buffer[tri.z].positionHomo.w};
+    // TODO: Divide by w only when calculating UVs?
+    // float_psp f0{edgeFuncs[0].Evaluate(pixel) / buffer[tri.x].positionHomo.w};
+    // float_psp f1{edgeFuncs[1].Evaluate(pixel) / buffer[tri.y].positionHomo.w};
+    // float_psp f2{edgeFuncs[2].Evaluate(pixel) / buffer[tri.z].positionHomo.w};
+    float_psp f0{edgeFuncs[0].Evaluate(pixel)};
+    float_psp f1{edgeFuncs[1].Evaluate(pixel)};
+    float_psp f2{edgeFuncs[2].Evaluate(pixel)};
     float fSum{f0 + f1 + f2};
 
     float_psp u{f1 / fSum};
