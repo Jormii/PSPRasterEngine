@@ -3,8 +3,6 @@ from plyfile import PlyData
 from mesh import Mesh
 from vector import Vec2, Vec3
 
-import os
-
 
 def parse_ply(ply_file):
     mesh = Mesh("ply_mesh")

@@ -31,7 +31,7 @@ for DIR in $TYPES_DIR $ENGINE_DIR; do
 done
 
 # Compile types
-TYPES_FILES=("vec2f" "vec2i" "vec3f" "vec3i" "vec4f" "mat3f" "mat4f" "rgba" "mesh")
+TYPES_FILES=("vec2f" "vec2i" "vec3f" "vec3i" "vec4f" "mat3f" "mat4f" "rgba" "texture" "mesh")
 for TYPE_SRC in ${TYPES_FILES[@]}; do
     echo g++ -c $SOURCE_DIR$TYPES_DIR$TYPE_SRC".cpp" $COMPILE_FLAGS $INCLUDE_PATHS
     g++ -c $SOURCE_DIR$TYPES_DIR$TYPE_SRC".cpp" $COMPILE_FLAGS $INCLUDE_PATHS

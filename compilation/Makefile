@@ -7,7 +7,7 @@ ENGINE_DIR = $(SOURCE_DIR)engine/
 
 TARGET = EnginePSP
 OBJS = 	$(TYPES_DIR)vec2f.o $(TYPES_DIR)vec2i.o $(TYPES_DIR)vec3f.o $(TYPES_DIR)vec3i.o $(TYPES_DIR)vec4f.o \
-		$(TYPES_DIR)mat3f.o $(TYPES_DIR)mat4f.o $(TYPES_DIR)rgba.o $(TYPES_DIR)mesh.o \
+		$(TYPES_DIR)mat3f.o $(TYPES_DIR)mat4f.o $(TYPES_DIR)rgba.o $(TYPES_DIR)texture.o $(TYPES_DIR)mesh.o \
 		$(ENGINE_DIR)utils.o $(ENGINE_DIR)light.o $(ENGINE_DIR)draw_matrices.o $(ENGINE_DIR)edge.o $(ENGINE_DIR)fragment.o \
 		$(ENGINE_DIR)rasterization.o $(ENGINE_DIR)engine.o \
 		$(MAIN_OBJ)
