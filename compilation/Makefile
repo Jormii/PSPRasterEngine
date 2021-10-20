@@ -10,12 +10,13 @@ OBJS = 	$(TYPES_DIR)vec2f.o $(TYPES_DIR)vec2i.o $(TYPES_DIR)vec3f.o $(TYPES_DIR)
 		$(TYPES_DIR)mat3f.o $(TYPES_DIR)mat4f.o $(TYPES_DIR)rgba.o $(TYPES_DIR)texture.o $(TYPES_DIR)mesh.o \
 		$(ENGINE_DIR)utils.o $(ENGINE_DIR)light.o $(ENGINE_DIR)draw_matrices.o $(ENGINE_DIR)edge.o $(ENGINE_DIR)fragment.o \
 		$(ENGINE_DIR)rasterization.o $(ENGINE_DIR)engine.o \
+		$(SOURCE_DIR)callbacks.o $(SOURCE_DIR)debug.o \
 		$(MAIN_OBJ)
 
-LIBS = -lpspgu -lstdc++ -lm
+LIBS = -lpspgu -lpspvfpu -lstdc++ -lm
 
-INCDIR = $(INCLUDE_DIR)types/ $(INCLUDE_DIR)/engine
-CFLAGS = -G0 -Wall -O2 -D PSP
+INCDIR = $(INCLUDE_DIR) $(INCLUDE_DIR)types/ $(INCLUDE_DIR)/engine
+CFLAGS = -G0 -Wall -O2
 CXXFLAGS = $(CFLAGS) -fno-rtti -fexceptions
 ASFLAGS = $(CFLAGS)
 
