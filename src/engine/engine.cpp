@@ -2,150 +2,113 @@
 
 #include <vector>
 
+#include <pspdebug.h>
+#include <pspvfpu.h>
+
+#include "constants.hpp"
+#include "debug.hpp"
 #include "fragment.hpp"
 #include "draw_buffer.hpp"
 #include "rasterization.hpp"
 
-struct EngineContext
+#define BUFFER_INDEX(x, y) (x + (PSP_HEIGHT - 1 - y) * PSP_WIDTH)
+
+bool initialized{false};
+pspvfpu_context *vfpuContext{0};
+DrawMatrices *mat{reinterpret_cast<DrawMatrices *>(SCRATCHPAD_START)};
+RGBA *colorBuffer{reinterpret_cast<RGBA *>(0x04000000)};
+float_psp *depthBuffer{new float_psp[PSP_BUFFER_SIZE]};
+
+void InitializeContext()
 {
-    bool initialized{false};
-
-    size_t viewportWidth;
-    size_t viewportHeight;
-    size_t bufferSize;
-
-    RGBA *colorBuffer;
-    float_psp *depthBuffer;
-
-    bool activeLights[N_LIGHTS];
-    PointLight lights[N_LIGHTS];
-} context;
-
-size_t BufferIndex(size_t x, size_t y);
-
-size_t BufferIndex(size_t x, size_t y)
-{
-    return x + (context.viewportHeight - 1 - y) * context.viewportWidth;
-}
-
-void InitializeContext(size_t width, size_t height)
-{
-    if (context.initialized)
+    if (initialized)
     {
         return;
     }
 
-    context.initialized = true;
+    initialized = true;
+    pspDebugScreenInit(); // Needed (for now at least)
+    pspDebugScreenClearLineDisable();
+    vfpuContext = pspvfpu_initcontext();
+}
 
-    context.viewportWidth = width;
-    context.viewportHeight = height;
-    context.bufferSize = width * height;
-
-#ifndef PSP
-    context.colorBuffer = new RGBA[context.bufferSize];
-    context.depthBuffer = new float_psp[context.bufferSize];
-#else
-    context.colorBuffer = reinterpret_cast<RGBA *>(0x04000000);
-    context.depthBuffer = new float_psp[context.bufferSize];
-#endif
-
-    for (size_t i{0}; i < N_LIGHTS; ++i)
+void DestroyContext()
+{
+    if (!initialized)
     {
-        context.activeLights[i] = false;
+        return;
     }
+
+    initialized = false;
+    pspvfpu_deletecontext(vfpuContext);
+}
+
+DrawMatrices *Matrices()
+{
+    return mat;
 }
 
 void ClearColorBuffer(const RGBA &color)
 {
-    for (size_t i{0}; i < context.bufferSize; ++i)
+    DebugStart(DebugIDs::CLEAR_COLOR_BUFFER);
+    for (size_t i{0}; i < PSP_BUFFER_SIZE; ++i)
     {
-        context.colorBuffer[i] = color;
+        colorBuffer[i] = color;
     }
+    DebugEnd(DebugIDs::CLEAR_COLOR_BUFFER);
 }
 
 void ClearDepthBuffer(float_psp depth)
 {
-    for (size_t i{0}; i < context.bufferSize; ++i)
+    DebugStart(DebugIDs::CLEAR_DEPTH_BUFFER);
+    for (size_t i{0}; i < PSP_BUFFER_SIZE; ++i)
     {
-        context.depthBuffer[i] = depth;
+        depthBuffer[i] = depth;
     }
+    DebugEnd(DebugIDs::CLEAR_DEPTH_BUFFER);
 }
 
-PointLight *ActivateLight(size_t index)
-{
-    if (index > N_LIGHTS)
-    {
-        return nullptr;
-    }
-
-    context.activeLights[index] = true;
-    return &context.lights[index];
-}
-
-void DeactivateLight(size_t index)
-{
-    if (index > N_LIGHTS)
-    {
-        return;
-    }
-
-    context.activeLights[index] = false;
-}
-
-void Draw(const Mesh &mesh, const DrawMatrices &matrices, VertexShader vs, FragmentShader fs)
+void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
 {
     // Vertex shading
+    DebugStart(DebugIDs::BUFFER_ALLOCATION);
     BufferVertexData *buffer{new BufferVertexData[mesh.vertexCount]};
+    DebugEnd(DebugIDs::BUFFER_ALLOCATION);
+
+    DebugStart(DebugIDs::VERTEX_SHADING);
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
-        vs(matrices, mesh.vertexData[i], buffer + i, context.activeLights, context.lights);
+        vs(mesh.vertexData[i], buffer + i);
+
         (buffer + i)->position = (buffer + i)->positionHomo.DivideByW();
-        (buffer + i)->viewPos = (matrices.mv * Vec4f{mesh.vertexData[i].position, 1.0f}).DivideByW();
+        (buffer + i)->viewPos = (mat->mv * Vec4f{mesh.vertexData[i].position, 1.0f}).DivideByW();
         (buffer + i)->uv = mesh.vertexData[i].uv;
     }
+    DebugEnd(DebugIDs::VERTEX_SHADING);
 
     // Rasterize
-    std::vector<Fragment> fragments{Rasterize(mesh, buffer, context.viewportWidth, context.viewportHeight)};
+    DebugStart(DebugIDs::RASTERIZATION);
+    std::vector<Fragment> fragments{Rasterize(mesh, buffer)};
+    DebugEnd(DebugIDs::RASTERIZATION);
 
     // Fragment shading
+    DebugStart(DebugIDs::FRAGMENT_SHADING);
     FSOut fsOut;
     for (const Fragment &fragment : fragments)
     {
-        fs(matrices, fragment, fsOut, context.activeLights, context.lights);
+        fs(fragment, fsOut);
 
-        size_t bufferIndex{BufferIndex(fragment.xScreenCoord, fragment.yScreenCoord)};
-        if (fsOut.depth < context.depthBuffer[bufferIndex])
+        size_t bufferIndex{BUFFER_INDEX(fragment.xScreenCoord, fragment.yScreenCoord)};
+        if (fsOut.depth < depthBuffer[bufferIndex])
         {
-            context.colorBuffer[bufferIndex] = RGBA::Vec4fAsRGBA(fsOut.color);
-            context.depthBuffer[bufferIndex] = fsOut.depth;
+            colorBuffer[bufferIndex] = RGBA::Vec4fAsRGBA(fsOut.color);
+            depthBuffer[bufferIndex] = fsOut.depth;
         }
     }
+    DebugEnd(DebugIDs::FRAGMENT_SHADING);
 
     // Free resources
+    DebugStart(DebugIDs::BUFFER_FREE);
     delete[] buffer;
+    DebugEnd(DebugIDs::BUFFER_FREE);
 }
-
-#ifndef PSP
-void RenderToConsole()
-{
-    for (size_t i{0}; i < context.viewportWidth; ++i)
-    {
-        std::cout << "-";
-    }
-    std::cout << "\n";
-    for (size_t i{0}; i < context.bufferSize; ++i)
-    {
-        std::cout << ((context.colorBuffer[i]) ? "x" : " ");
-
-        if ((i + 1) % context.viewportWidth == 0)
-        {
-            std::cout << "\n";
-        }
-    }
-    for (size_t i{0}; i < context.viewportWidth; ++i)
-    {
-        std::cout << "-";
-    }
-    std::cout << "\n";
-}
-#endif

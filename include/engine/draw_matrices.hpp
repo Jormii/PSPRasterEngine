@@ -5,14 +5,11 @@
 
 struct DrawMatrices
 {
-    const Mat4f &model;
-    const Mat4f &view;
-    const Mat4f &projection;
-    const Mat4f mv;
-    const Mat4f mvp;
-    Mat4f normalMat;
+    Mat4f mv;
+    Mat4f mvp;
+    Mat4f n;
 
-    DrawMatrices(const Mat4f &model, const Mat4f &view, const Mat4f &projection);
+    void Init(const Mat4f &m, const Mat4f &v, const Mat4f &p);
 };
 
 #endif

@@ -18,6 +18,11 @@ RGBA::RGBA(const RGBA &color) : r{color.r}, g{color.g}, b{color.b}, opacity{colo
 {
 }
 
+unsigned int RGBA::AsUint() const
+{
+    return opacity + (8 << b) + (16 << g) + (24 << r);
+}
+
 RGBA RGBA::Vec4fAsRGBA(const Vec4f &v)
 {
     return RGBA{
@@ -33,11 +38,3 @@ std::ostream &operator<<(std::ostream &out, const RGBA &rgba)
         << static_cast<int_psp>(rgba.b) << ", " << static_cast<int_psp>(rgba.opacity) << ")";
     return out;
 }
-
-#ifndef PSP
-RGBA::operator bool() const
-{
-    int_psp rgb_sum = r + g + b;
-    return rgb_sum != 0;
-}
-#endif

@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "constants.hpp"
 #include "edge.hpp"
 
 #include "vec2i.hpp"
@@ -43,7 +44,7 @@ bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
     return insideCount > 0;
 }
 
-void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height)
+void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments)
 {
     // Edge equations
     EdgeFunction edgeFuncs[]{
@@ -81,7 +82,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
     {
         for (int_psp y{lowPixel.y}; y <= highPixel.y; ++y)
         {
-            if (x < 0 || x >= static_cast<int>(width) || y < 0 || y >= static_cast<int>(height))
+            if (x < 0 || x >= PSP_WIDTH || y < 0 || y >= PSP_HEIGHT)
             {
                 continue;
             }
@@ -165,13 +166,13 @@ Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferV
     return Vec3f{u, v, w};
 }
 
-std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer, size_t width, size_t height)
+std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer)
 {
     // Calculate screen-space coordinates
     Vec2f *screenSpace{new Vec2f[mesh.vertexCount]};
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
-        screenSpace[i] = VertexScreenCoordinate(buffer[i].position, width, height);
+        screenSpace[i] = VertexScreenCoordinate(buffer[i].position);
     }
 
     // Generate fragments
@@ -184,18 +185,15 @@ std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer
             continue;
         }
 
-        RasterizeTriangle(tri, buffer, screenSpace, fragments, width, height);
+        RasterizeTriangle(tri, buffer, screenSpace, fragments);
     }
 
     return fragments;
 }
 
-Vec2f VertexScreenCoordinate(const Vec3f &p, size_t width, size_t height)
+Vec2f VertexScreenCoordinate(const Vec3f &p)
 {
-    float_psp wHalf{0.5f * width};
-    float_psp hHalf{0.5f * height};
-
     return Vec2f{
-        wHalf * (p.x + 1.0f),
-        hHalf * (p.y + 1.0f)};
+        PSP_HALF_WIDTH * (p.x + 1.0f),
+        PSP_HALF_HEIGHT * (p.y + 1.0f)};
 }

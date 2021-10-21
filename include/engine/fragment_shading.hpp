@@ -12,6 +12,6 @@ struct FSOut
     float_psp depth;
 };
 
-typedef void (*FragmentShader)(const DrawMatrices &matrices, const Fragment &fragment, FSOut &out, const bool *activeLights, const PointLight *lights);
+typedef void (*FragmentShader)(const Fragment &fragment, FSOut &out);
 
 #endif
