@@ -17,6 +17,7 @@ void DestroyContext();
 DrawMatrices *Matrices();
 void ClearColorBuffer(const RGBA &color);
 void ClearDepthBuffer(float_psp depth);
+void SwapBuffers();
 void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs);
 
 #endif

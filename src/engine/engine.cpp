@@ -5,6 +5,7 @@
 #include <pspge.h>
 #include <pspvfpu.h>
 #include <pspdisplay.h>
+#include <psputils.h>
 
 #include "debug.hpp"
 #include "constants.hpp"
@@ -19,8 +20,19 @@ bool initialized{false};
 pspvfpu_context *vfpuContext{nullptr};
 
 DrawMatrices *mat{reinterpret_cast<DrawMatrices *>(SCRATCHPAD_START)};
-RGBA *colorBuffer{reinterpret_cast<RGBA *>(0x04000000)};
+RGBA *displayBuffer{reinterpret_cast<RGBA *>(0x4000000)};
+#if 0
+RGBA *drawBuffer{displayBuffer + sizeof(RGBA) * PSP_BUFFER_SIZE};
+#else
+RGBA *drawBuffer{reinterpret_cast<RGBA *>(0x4300000)};
+#endif
+
+// TODO: Can EDRAM be used for the depth buffer?
+#if 0
+float_psp *depthBuffer{reinterpret_cast<float_psp *>(drawBuffer + sizeof(RGBA) * PSP_BUFFER_SIZE)};
+#else
 float_psp *depthBuffer{new float_psp[PSP_BUFFER_SIZE]};
+#endif
 
 void InitializeContext()
 {
@@ -32,8 +44,18 @@ void InitializeContext()
     initialized = true;
     vfpuContext = pspvfpu_initcontext();
 
+    // Clear display buffer
+    for (size_t i{0}; i < PSP_BUFFER_SIZE; ++i)
+    {
+        displayBuffer[i] = RGBA{0, 0, 0};
+    }
+
+    std::cout << displayBuffer << "\n";
+    std::cout << drawBuffer << "\n";
+    std::cout << depthBuffer << "\n";
+
     sceDisplaySetMode(0, PSP_ACTUAL_WIDTH, PSP_HEIGHT);
-    sceDisplaySetFrameBuf(colorBuffer, PSP_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_8888, 1);
+    sceDisplaySetFrameBuf(displayBuffer, PSP_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_IMMEDIATE);
 }
 
 void DestroyContext()
@@ -57,7 +79,7 @@ void ClearColorBuffer(const RGBA &color)
     DebugStart(DebugIDs::CLEAR_COLOR_BUFFER);
     for (size_t i{0}; i < PSP_BUFFER_SIZE; ++i)
     {
-        colorBuffer[i] = color;
+        drawBuffer[i] = color;
     }
     DebugEnd(DebugIDs::CLEAR_COLOR_BUFFER);
 }
@@ -70,6 +92,15 @@ void ClearDepthBuffer(float_psp depth)
         depthBuffer[i] = depth;
     }
     DebugEnd(DebugIDs::CLEAR_DEPTH_BUFFER);
+}
+
+void SwapBuffers()
+{
+    RGBA *tmp{displayBuffer};
+    displayBuffer = drawBuffer;
+    drawBuffer = tmp;
+
+    sceDisplaySetFrameBuf(displayBuffer, PSP_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
 }
 
 void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
@@ -105,7 +136,7 @@ void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
         size_t bufferIndex{BUFFER_INDEX(fragment.xScreenCoord, fragment.yScreenCoord)};
         if (fsOut.depth < depthBuffer[bufferIndex])
         {
-            colorBuffer[bufferIndex] = RGBA::Vec4fAsRGBA(fsOut.color);
+            drawBuffer[bufferIndex] = RGBA::Vec4fAsRGBA(fsOut.color);
             depthBuffer[bufferIndex] = fsOut.depth;
         }
     }

@@ -61,7 +61,6 @@ int main()
         1.0f, 10.0f)};
 
     SceCtrlData pad;
-    bool updateScreen{true};
     do
     {
         // Read input
@@ -74,12 +73,10 @@ int main()
         if (pad.Buttons & PSP_CTRL_SQUARE)
         {
             angle += 0.1f;
-            updateScreen = true;
         }
         if (pad.Buttons & PSP_CTRL_CIRCLE)
         {
             angle -= 0.1;
-            updateScreen = true;
         }
 
         if (angle >= 2 * M_PI)
@@ -91,6 +88,7 @@ int main()
             angle += 2 * M_PI;
         }
 
+        // Update view matrix and matrixes
         cameraX = distance * cosf(angle);
         cameraZ = distance * sinf(angle);
         view = LookAt(
@@ -98,22 +96,18 @@ int main()
             Vec3f{0.0f, 0.0f, 0.0f},
             Vec3f{0.0f, 1.0f, 0.0f});
 
-        if (updateScreen)
-        {
-            updateScreen = false;
-            Matrices()->Init(model, view, projection);
+        Matrices()->Init(model, view, projection);
 
-            // Draw call
-            ClearColorBuffer(RGBA{122, 122, 255}); // Black
-            ClearDepthBuffer(9999.0f);
+        ClearColorBuffer(RGBA{122, 122, 255});
+        ClearDepthBuffer(9999.0f);
 
-            Draw(cubeMesh, &CustomVS, &CustomFS);
-            Draw(planeMesh, &CustomVS, &CustomFS);
+        Draw(cubeMesh, &CustomVS, &CustomFS);
+        Draw(planeMesh, &CustomVS, &CustomFS);
+        
+        // Print debug to console
+        PrintDebugDataAndReset();
 
-            // Print debug to console
-            PrintDebugDataAndReset();
-        }
-
+        SwapBuffers();
         sceDisplayWaitVblankStart();
     } while (running());
 
