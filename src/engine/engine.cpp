@@ -2,11 +2,13 @@
 
 #include <vector>
 
-#include <pspdebug.h>
+#include <pspge.h>
 #include <pspvfpu.h>
+#include <pspdisplay.h>
 
-#include "constants.hpp"
 #include "debug.hpp"
+#include "constants.hpp"
+
 #include "fragment.hpp"
 #include "draw_buffer.hpp"
 #include "rasterization.hpp"
@@ -14,7 +16,8 @@
 #define BUFFER_INDEX(x, y) (x + (PSP_HEIGHT - 1 - y) * PSP_WIDTH)
 
 bool initialized{false};
-pspvfpu_context *vfpuContext{0};
+pspvfpu_context *vfpuContext{nullptr};
+
 DrawMatrices *mat{reinterpret_cast<DrawMatrices *>(SCRATCHPAD_START)};
 RGBA *colorBuffer{reinterpret_cast<RGBA *>(0x04000000)};
 float_psp *depthBuffer{new float_psp[PSP_BUFFER_SIZE]};
@@ -27,9 +30,10 @@ void InitializeContext()
     }
 
     initialized = true;
-    pspDebugScreenInit(); // Needed (for now at least)
-    pspDebugScreenClearLineDisable();
     vfpuContext = pspvfpu_initcontext();
+
+    sceDisplaySetMode(0, PSP_ACTUAL_WIDTH, PSP_HEIGHT);
+    sceDisplaySetFrameBuf(colorBuffer, PSP_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_8888, 1);
 }
 
 void DestroyContext()
@@ -105,6 +109,7 @@ void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
             depthBuffer[bufferIndex] = fsOut.depth;
         }
     }
+
     DebugEnd(DebugIDs::FRAGMENT_SHADING);
 
     // Free resources

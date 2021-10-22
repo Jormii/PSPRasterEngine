@@ -2,6 +2,7 @@
 
 #include <pspctrl.h>
 #include <pspkernel.h>
+#include <pspdisplay.h>
 
 #include "callbacks.hpp"
 #include "constants.hpp"
@@ -37,8 +38,6 @@ void CustomFS(const Fragment &fragment, FSOut &out)
         fragment.normal.Normalized())};
     out.color = Vec4f{dot, dot, dot, 1.0f};
 }
-
-// https://github.com/pspdev/pspsdk/blob/master/src/samples/gu/cube/cube.c
 
 int main()
 {
@@ -114,6 +113,8 @@ int main()
             // Print debug to console
             PrintDebugDataAndReset();
         }
+
+        sceDisplayWaitVblankStart();
     } while (running());
 
     DestroyContext();
