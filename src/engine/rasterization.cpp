@@ -10,7 +10,7 @@
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
-bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_psp topEdgeMask, int_psp leftEdgeMask);
+bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferVertexData *buffer, const EdgeFunction *edgeFuncs);
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
@@ -38,24 +38,6 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
         EdgeFunction::FromPoints(screenSpace[tri.z], screenSpace[tri.x])};
     DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGE_FUNCS);
 
-    // Retrieve top and left edges
-    DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGES_MASKS);
-    int_psp topEdgeMask{0};
-    int_psp leftEdgeMask{0};
-    for (size_t i{0}; i < 3; ++i)
-    {
-        if (edgeFuncs[i].a > 0 && edgeFuncs[i].b == 0)
-        {
-            topEdgeMask |= 1 << i;
-        }
-
-        if (edgeFuncs[i].a > 0)
-        {
-            leftEdgeMask |= 1 << i;
-        }
-    }
-    DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGES_MASKS);
-
     // Bounding box
     DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BBOX);
     float_psp minX{std::min(screenSpace[tri.x].x, std::min(screenSpace[tri.y].x, screenSpace[tri.z].x))};
@@ -80,7 +62,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
             Vec2f pixelCenter{x + 0.5f, y + 0.5f};
 
             DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
-            bool withinTri{PixelWithinTriangle(pixelCenter, edgeFuncs, topEdgeMask, leftEdgeMask)};
+            bool withinTri{PixelWithinTriangle(pixelCenter, edgeFuncs)};
             DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
 
             if (withinTri)
@@ -127,19 +109,15 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
     }
 }
 
-bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs, int_psp topEdgeMask, int_psp leftEdgeMask)
+bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
 {
     for (size_t i{0}; i < 3; ++i)
     {
         float_psp fPixel{edgeFuncs[i].Evaluate(pixel)};
-        if (fPixel < 0.0f)
-        {
-            return false;
-        }
-
-        bool isTopEdge{static_cast<bool>(topEdgeMask & (1 << i))};
-        bool isLeftEdge{static_cast<bool>(leftEdgeMask & (1 << i))};
-        if (fPixel == 0.0f && !(isTopEdge || isLeftEdge))
+        bool firstCase{fPixel > 0.0f};
+        bool secondCase{fPixel == 0.0f && edgeFuncs[i].a > 0.0f};
+        bool thirdCase{fPixel == 0.0f && edgeFuncs[i].a == 0.0f && edgeFuncs[i].b >= 0.0f};
+        if (!(firstCase || secondCase || thirdCase))
         {
             return false;
         }
