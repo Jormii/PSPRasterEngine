@@ -96,11 +96,13 @@ void ClearDepthBuffer(float_psp depth)
 
 void SwapBuffers()
 {
+    DebugStart(DebugIDs::SWAP_BUFFERS);
     RGBA *tmp{displayBuffer};
     displayBuffer = drawBuffer;
     drawBuffer = tmp;
 
     sceDisplaySetFrameBuf(displayBuffer, PSP_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
+    DebugEnd(DebugIDs::SWAP_BUFFERS);
 }
 
 void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)

@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "debug.hpp"
 #include "constants.hpp"
 #include "edge.hpp"
 
@@ -15,44 +16,30 @@ Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferV
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 {
     // Determine if backfacing
-    const Vec3f &v1{buffer[tri.x].position};
-    const Vec3f &v2{buffer[tri.y].position};
-    const Vec3f &v3{buffer[tri.z].position};
+    const Vec3f &v1{buffer[tri.x].viewPos};
+    const Vec3f &v2{buffer[tri.y].viewPos};
+    const Vec3f &v3{buffer[tri.z].viewPos};
 
     Vec3f v1v2{v2 - v1};
-    Vec3f v2v3{v3 - v2};
-    Vec3f faceNormal{Vec3f::Cross(v1, v2)};
+    Vec3f v1v3{v3 - v1};
+    Vec3f faceNormal{Vec3f::Cross(v1v2, v1v3)};
 
-    Vec3f centroid{(v1 + v2 + v3) / 3.0f}; // TODO: Unlikely unnecessary
-    float_psp dot{Vec3f::Dot(centroid, faceNormal)};
-    if (dot <= 0.0f)
-    {
-        return false;
-    }
-
-    // Determine if outside the frustum
-    size_t insideCount{0};
-    for (const Vec3f &v : {v1, v2, v3})
-    {
-        bool insideX{v.x >= -1.0f && v.x <= 1.0f};
-        bool insideY{v.y >= -1.0f && v.y <= 1.0f};
-        bool insideZ{v.z >= -1.0f && v.z <= 1.0f};
-
-        insideCount += (insideX && insideY && insideZ);
-    }
-
-    return insideCount > 0;
+    float_psp dot{Vec3f::Dot(v1, faceNormal)};
+    return dot <= 0.0f;
 }
 
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments)
 {
     // Edge equations
+    DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGE_FUNCS);
     EdgeFunction edgeFuncs[]{
         EdgeFunction::FromPoints(screenSpace[tri.x], screenSpace[tri.y]),
         EdgeFunction::FromPoints(screenSpace[tri.y], screenSpace[tri.z]),
         EdgeFunction::FromPoints(screenSpace[tri.z], screenSpace[tri.x])};
+    DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGE_FUNCS);
 
     // Retrieve top and left edges
+    DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGES_MASKS);
     int_psp topEdgeMask{0};
     int_psp leftEdgeMask{0};
     for (size_t i{0}; i < 3; ++i)
@@ -67,31 +54,42 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
             leftEdgeMask |= 1 << i;
         }
     }
+    DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGES_MASKS);
 
     // Bounding box
+    DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BBOX);
     float_psp minX{std::min(screenSpace[tri.x].x, std::min(screenSpace[tri.y].x, screenSpace[tri.z].x))};
     float_psp minY{std::min(screenSpace[tri.x].y, std::min(screenSpace[tri.y].y, screenSpace[tri.z].y))};
     float_psp maxX{std::max(screenSpace[tri.x].x, std::max(screenSpace[tri.y].x, screenSpace[tri.z].x))};
     float_psp maxY{std::max(screenSpace[tri.x].y, std::max(screenSpace[tri.y].y, screenSpace[tri.z].y))};
 
+    minX = std::max(minX, 0.0f);
+    minY = std::max(minY, 0.0f);
+    maxX = std::min(maxX, PSP_WIDTH - 1.0f);
+    maxY = std::min(maxY, PSP_HEIGHT - 1.0f);
+
     Vec2i lowPixel{static_cast<int_psp>(floorf(minX)), static_cast<int_psp>(floorf(minY))};
     Vec2i highPixel{static_cast<int_psp>(floorf(maxX)), static_cast<int_psp>(floorf(maxY))};
+    DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BBOX);
 
     // Create fragments
     for (int_psp x{lowPixel.x}; x <= highPixel.x; ++x)
     {
         for (int_psp y{lowPixel.y}; y <= highPixel.y; ++y)
         {
-            if (x < 0 || x >= PSP_WIDTH || y < 0 || y >= PSP_HEIGHT)
-            {
-                continue;
-            }
-
             Vec2f pixelCenter{x + 0.5f, y + 0.5f};
-            if (PixelWithinTriangle(pixelCenter, edgeFuncs, topEdgeMask, leftEdgeMask))
-            {
-                Vec3f baryCoords{BarycentricCoordinates(pixelCenter, tri, buffer, edgeFuncs)};
 
+            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
+            bool withinTri{PixelWithinTriangle(pixelCenter, edgeFuncs, topEdgeMask, leftEdgeMask)};
+            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
+
+            if (withinTri)
+            {
+                DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BARY_COORDS);
+                Vec3f baryCoords{BarycentricCoordinates(pixelCenter, tri, buffer, edgeFuncs)};
+                DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BARY_COORDS);
+
+                DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
                 float_psp depth{
                     baryCoords.x * buffer[tri.x].position.z +
                     baryCoords.y * buffer[tri.y].position.z +
@@ -123,6 +121,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
 
                 Fragment f{x, y, depth, viewPos, normal, color, uv};
                 fragments.push_back(f);
+                DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
             }
         }
     }
@@ -169,23 +168,29 @@ Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferV
 std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer)
 {
     // Calculate screen-space coordinates
+    DebugStart(DebugIDs::RASTERIZATION_SCREEN_CORD);
     Vec2f *screenSpace{new Vec2f[mesh.vertexCount]};
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
         screenSpace[i] = VertexScreenCoordinate(buffer[i].position);
     }
+    DebugEnd(DebugIDs::RASTERIZATION_SCREEN_CORD);
 
     // Generate fragments
     std::vector<Fragment> fragments;
     for (size_t i{0}; i < mesh.triangleCount; ++i)
     {
         const Vec3i &tri{mesh.triangles[i]};
-        if (!TriangleIsVisible(tri, buffer))
-        {
-            continue;
-        }
+        DebugStart(DebugIDs::RASTERIZATION_TRIANGLE_VISIBILITY);
+        bool visible{TriangleIsVisible(tri, buffer)};
+        DebugEnd(DebugIDs::RASTERIZATION_TRIANGLE_VISIBILITY);
 
-        RasterizeTriangle(tri, buffer, screenSpace, fragments);
+        if (visible)
+        {
+            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE);
+            RasterizeTriangle(tri, buffer, screenSpace, fragments);
+            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE);
+        }
     }
 
     return fragments;
