@@ -12,6 +12,7 @@
 struct DebugData
 {
     size_t slot;
+    char *text;
     clock_t startTime;
     clock_t totalTime{0};
     size_t callCount{0};

@@ -8,8 +8,12 @@
 
 #include "vec2i.hpp"
 
+constexpr float_psp WIDTH_MINUS_1{PSP_WIDTH - 1.0f};
+constexpr float_psp HEIGHT_MINUS_1{PSP_HEIGHT - 1.0f};
+
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
+Vec4f TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c);
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 Vec3f BarycentricCoordinates(const Vec2f &pixel, const Vec3i &tri, const BufferVertexData *buffer, const EdgeFunction *edgeFuncs);
 
@@ -40,18 +44,10 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
 
     // Bounding box
     DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BBOX);
-    float_psp minX{std::min(screenSpace[tri.x].x, std::min(screenSpace[tri.y].x, screenSpace[tri.z].x))};
-    float_psp minY{std::min(screenSpace[tri.x].y, std::min(screenSpace[tri.y].y, screenSpace[tri.z].y))};
-    float_psp maxX{std::max(screenSpace[tri.x].x, std::max(screenSpace[tri.y].x, screenSpace[tri.z].x))};
-    float_psp maxY{std::max(screenSpace[tri.x].y, std::max(screenSpace[tri.y].y, screenSpace[tri.z].y))};
+    Vec4f bbox{TriangleBBOX(screenSpace[tri.x], screenSpace[tri.y], screenSpace[tri.z])};
 
-    minX = std::max(minX, 0.0f);
-    minY = std::max(minY, 0.0f);
-    maxX = std::min(maxX, PSP_WIDTH - 1.0f);
-    maxY = std::min(maxY, PSP_HEIGHT - 1.0f);
-
-    Vec2i lowPixel{static_cast<int_psp>(floorf(minX)), static_cast<int_psp>(floorf(minY))};
-    Vec2i highPixel{static_cast<int_psp>(floorf(maxX)), static_cast<int_psp>(floorf(maxY))};
+    Vec2i lowPixel{static_cast<int_psp>(floorf(bbox.x)), static_cast<int_psp>(floorf(bbox.y))};
+    Vec2i highPixel{static_cast<int_psp>(floorf(bbox.z)), static_cast<int_psp>(floorf(bbox.w))};
     DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BBOX);
 
     // Create fragments
@@ -107,6 +103,50 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
             }
         }
     }
+}
+
+Vec4f TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
+{
+    // Load vectors into VFPU
+    asm(
+        "lv.s S000, 0(%0);  lv.s S010, 4(%0);"
+        "lv.s S001, 0(%1);  lv.s S011, 4(%1);"
+        "lv.s S002, 0(%2);  lv.s S012, 4(%2);"
+        :
+        : "r"(&a), "r"(&b), "r"(&c)
+        :);
+
+    // Load screen bounds
+    asm(
+        "vzero.p R020;"
+        "lv.s S021, 0(%1); lv.s S031, 0(%2);"
+        :
+        : "r"(&WIDTH_MINUS_1), "r"(&HEIGHT_MINUS_1)
+        :);
+
+    // Get BBOX
+    // Lower bound
+    asm(
+        "vmin.p R003, R000, R001;"
+        "vmin.p R003, R003, R002;"
+        "vmax.p R003, R003, R020;");
+
+    // Upper bound
+    asm(
+        "vmax.p R023, R000, R001;"
+        "vmax.p R023, R023, R002;"
+        "vmin.p R023, R023, R021;");
+
+    // Store BBOX
+    // TODO: Transform to Vec4i and use VFPU for casting
+    Vec4f bbox;
+    asm(
+        "sv.q R003, 0(%0);"
+        :
+        : "r"(&bbox)
+        :);
+
+    return bbox;
 }
 
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs)

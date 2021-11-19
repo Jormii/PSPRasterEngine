@@ -5,26 +5,6 @@
 #include <iostream>
 
 #ifdef DEBUG
-const char *debugIDsName[]{
-    "CLEAR_COLOR_BUFFER",
-    "CLEAR_DEPTH_BUFFER",
-    "SWAP_BUFFERS",
-    "DRAW",
-    "BUFFER_ALLOCATION",
-    "VERTEX_SHADING",
-    "RASTERIZATION",
-    "RASTERIZATION::SCREEN_SPACE",
-    "RASTERIZATION::TRIANGLE_VISIBILITY",
-    "RASTERIZATION::RASTERIZE_TRIANGLE",
-    "RASTERIZATION::TRIANGLE_VISIBILITY::EDGE_FUNCTIONS",
-    "RASTERIZATION::TRIANGLE_VISIBILITY::EDGE_MASKS",
-    "RASTERIZATION::TRIANGLE_VISIBILITY::BBOX",
-    "RASTERIZATION::TRIANGLE_VISIBILITY::WITHIN_TRIANGLE",
-    "RASTERIZATION::TRIANGLE_VISIBILITY::BARY_COORDS",
-    "RASTERIZATION::TRIANGLE_VISIBILITY::INTERPOLATION",
-    "FRAGMENT_SHADING",
-    "BUFFER_FREE"};
-
 bool debugInit{false};
 DebugData debugData[DEBUG_SLOTS];
 #endif
@@ -37,6 +17,25 @@ void DebugInit()
     {
         debugData[i].slot = i;
     }
+
+    debugData[DebugIDs::CLEAR_COLOR_BUFFER].text = "CLEAR COLOR BUFFER";
+    debugData[DebugIDs::CLEAR_DEPTH_BUFFER].text = "CLEAR DEPTH BUFFER";
+    debugData[DebugIDs::SWAP_BUFFERS].text = "SWAP BUFFERS";
+    debugData[DebugIDs::DRAW].text = "DRAW CALL";
+    debugData[DebugIDs::BUFFER_ALLOCATION].text = "BUFFER ALLOCATION";
+    debugData[DebugIDs::VERTEX_SHADING].text = "VERTEX SHADING";
+    debugData[DebugIDs::RASTERIZATION].text = "RASTERIZATION";
+    debugData[DebugIDs::RASTERIZATION_SCREEN_CORD].text = "RASTERIZATION::SCREEN COORDS";
+    debugData[DebugIDs::RASTERIZATION_TRIANGLE_VISIBILITY].text = "RASTERIZATION::TRIANGLE VISIBILITY";
+    debugData[DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE].text = "RASTERIZATION::RASTERIZE TRIANGLE";
+    debugData[DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_EDGE_FUNCS].text = "RASTERIZATION::EDGE FUNCS";
+    debugData[DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BBOX].text = "RASTERIZATION::BBOX";
+    debugData[DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE].text = "RASTERIZATION::WITHIN TRIANGLE";
+    debugData[DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BARY_COORDS].text = "RASTERIZATION::BARY COORDS";
+    debugData[DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION].text = "RASTERIZATION::INTERPOLATION";
+    debugData[DebugIDs::FRAGMENT_SHADING].text = "FRAGMENT_SHADING";
+    debugData[DebugIDs::BUFFER_FREE].text = "FREE BUFFER";
+    // debugData[DebugIDs::BUFFER_ALLOCATION].text = "";
 #endif
 }
 
@@ -54,6 +53,11 @@ void DebugStart(size_t id)
 void DebugEnd(size_t id)
 {
 #ifdef DEBUG
+    if (!debugInit)
+    {
+        return;
+    }
+
     debugData[id].totalTime += clock() - debugData[id].startTime;
     debugData[id].callCount += 1;
 #endif
@@ -73,6 +77,11 @@ void PrintDebugDataAndReset()
 {
 #ifdef DEBUG
 #define CLOCK_SEC (float(CLOCKS_PER_SEC))
+    if (!debugInit)
+    {
+        return;
+    }
+
     std::vector<DebugData *> debugVec;
     for (size_t i{0}; i < DEBUG_SLOTS; ++i)
     {
@@ -90,7 +99,7 @@ void PrintDebugDataAndReset()
     for (size_t i{0}; i < debugVec.size(); ++i)
     {
         DebugData *d{debugVec[i]};
-        std::cout << debugIDsName[d->slot] << "\n";
+        std::cout << d->text << "\n";
         std::cout
             << "Time: " << d->totalTime
             << " ; Calls: " << d->callCount
