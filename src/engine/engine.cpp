@@ -107,6 +107,7 @@ void SwapBuffers()
 
 void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
 {
+    std::cout << sizeof(BufferVertexData) << "\n";
     // Vertex shading
     DebugStart(DebugIDs::BUFFER_ALLOCATION);
     BufferVertexData *buffer{new BufferVertexData[mesh.vertexCount]};
@@ -115,9 +116,9 @@ void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
     DebugStart(DebugIDs::VERTEX_SHADING);
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
-        vs(mesh.vertexData[i], buffer + i);
+        Vec4f clipSpace{vs(mesh.vertexData[i], buffer + i)};
 
-        (buffer + i)->position = (buffer + i)->positionHomo.DivideByW();
+        (buffer + i)->position = clipSpace.DivideByW();
         (buffer + i)->viewPos = (mat->mv * Vec4f{mesh.vertexData[i].position, 1.0f}).DivideByW();
         (buffer + i)->uv = mesh.vertexData[i].uv;
     }

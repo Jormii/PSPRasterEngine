@@ -119,7 +119,7 @@ Vec4f TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
     // Load screen bounds
     asm(
         "vzero.p R020;"
-        "lv.s S021, 0(%1); lv.s S031, 0(%2);"
+        "lv.s S021, 0(%0); lv.s S031, 0(%1);"
         :
         : "r"(&WIDTH_MINUS_1), "r"(&HEIGHT_MINUS_1)
         :);

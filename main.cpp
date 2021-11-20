@@ -16,7 +16,7 @@
 PSP_MODULE_INFO("Engine Test", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
-void CustomVS(const VertexData &vertexData, BufferVertexData *out)
+Vec4f CustomVS(const VertexData &vertexData, BufferVertexData *out)
 {
     Vec4f vHomo{vertexData.position, 1.0f};
     Vec4f vertexTransformed{Matrices()->mvp * vHomo};
@@ -24,9 +24,9 @@ void CustomVS(const VertexData &vertexData, BufferVertexData *out)
     Vec4f nHomo{vertexData.normal, 0.0f};
     Vec4f nT{Matrices()->n * nHomo};
 
-    out->positionHomo = vertexTransformed;
     out->normal = Vec3f{nT.x, nT.y, nT.z}.Normalize();
     out->color = vertexData.color;
+    return vertexTransformed;
 }
 
 void CustomFS(const Fragment &fragment, FSOut &out)
@@ -103,7 +103,7 @@ int main()
 
         Draw(cubeMesh, &CustomVS, &CustomFS);
         Draw(planeMesh, &CustomVS, &CustomFS);
-        
+
         // Print debug to console
         PrintDebugDataAndReset();
 

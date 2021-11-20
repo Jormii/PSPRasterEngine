@@ -7,6 +7,6 @@
 
 #include "mesh.hpp"
 
-typedef void (*VertexShader)(const VertexData &vertexData, BufferVertexData *out);
+typedef Vec4f (*VertexShader)(const VertexData &vertexData, BufferVertexData *out);
 
 #endif
