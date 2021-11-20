@@ -76,44 +76,34 @@ DrawMatrices *Matrices()
 
 void ClearColorBuffer(const RGBA &color)
 {
-    DebugStart(DebugIDs::CLEAR_COLOR_BUFFER);
     for (size_t i{0}; i < PSP_BUFFER_SIZE; ++i)
     {
         drawBuffer[i] = color;
     }
-    DebugEnd(DebugIDs::CLEAR_COLOR_BUFFER);
 }
 
 void ClearDepthBuffer(float_psp depth)
 {
-    DebugStart(DebugIDs::CLEAR_DEPTH_BUFFER);
     for (size_t i{0}; i < PSP_BUFFER_SIZE; ++i)
     {
         depthBuffer[i] = depth;
     }
-    DebugEnd(DebugIDs::CLEAR_DEPTH_BUFFER);
 }
 
 void SwapBuffers()
 {
-    DebugStart(DebugIDs::SWAP_BUFFERS);
     RGBA *tmp{displayBuffer};
     displayBuffer = drawBuffer;
     drawBuffer = tmp;
 
     sceDisplaySetFrameBuf(displayBuffer, PSP_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
-    DebugEnd(DebugIDs::SWAP_BUFFERS);
 }
 
 void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
 {
-    std::cout << sizeof(BufferVertexData) << "\n";
     // Vertex shading
-    DebugStart(DebugIDs::BUFFER_ALLOCATION);
     BufferVertexData *buffer{new BufferVertexData[mesh.vertexCount]};
-    DebugEnd(DebugIDs::BUFFER_ALLOCATION);
 
-    DebugStart(DebugIDs::VERTEX_SHADING);
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
         Vec4f clipSpace{vs(mesh.vertexData[i], buffer + i)};
@@ -122,7 +112,6 @@ void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
         (buffer + i)->viewPos = (mat->mv * Vec4f{mesh.vertexData[i].position, 1.0f}).DivideByW();
         (buffer + i)->uv = mesh.vertexData[i].uv;
     }
-    DebugEnd(DebugIDs::VERTEX_SHADING);
 
     // Rasterize
     DebugStart(DebugIDs::RASTERIZATION);
@@ -147,7 +136,5 @@ void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
     DebugEnd(DebugIDs::FRAGMENT_SHADING);
 
     // Free resources
-    DebugStart(DebugIDs::BUFFER_FREE);
     delete[] buffer;
-    DebugEnd(DebugIDs::BUFFER_FREE);
 }

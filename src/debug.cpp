@@ -35,6 +35,8 @@ void DebugInit()
     debugData[DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION].text = "RASTERIZATION::INTERPOLATION";
     debugData[DebugIDs::FRAGMENT_SHADING].text = "FRAGMENT_SHADING";
     debugData[DebugIDs::BUFFER_FREE].text = "FREE BUFFER";
+
+    debugData[DebugIDs::CREATE_PIXEL].text = "CREATE PIXEL";
     // debugData[DebugIDs::BUFFER_ALLOCATION].text = "";
 #endif
 }
