@@ -16,10 +16,11 @@
  *  - BBOX: In terms of grid, aka, values returned are multiples of GRID_SIZE=4
  *  - Edge function:
  *      Results are stored in matrixes M000, M100 & M200
- *      M300, M400, M500 store ei(x, y) for the bottom left pixel in the grid and parameters a, b of e.
+ *      M300, M400, M500 store ei(x, y) for the bottom left pixel in the grid and parameters a, b of e
  *          Their 4th row are used for temporal calculations
  *      R600 stores a constant (0, 1, 2, 3) vector used to calculate ei(X, Y) being XY the pixels in the grid
- *  - Weights: TODO
+ *  - Weights: Arranged along M300-M600. Each column is a XYZW weight with W=0
+ *          C300 belongs to to the bottom left pixel in the grid
  *  - Interpolation: TODO
  *  - Visibility and fragment creation: TODO
  */
@@ -254,7 +255,13 @@ void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges)
 
 void CalculateBarycentricCoordinates()
 {
-    // E_SUM(M700) <- E0(M000) + E1(M100) + E20(M200)
+    // Clear target matrixes
+    asm(
+        "vmzero.q M300;"
+        "vmzero.q M400;"
+        "vmzero.q M500;");
+
+    // E_SUM(M700) <- E0(M000) + E1(M100) + E2(M200)
     asm(
         "vadd.q R700, R000, R100;"
         "vadd.q R700, R700, R200;"
@@ -268,29 +275,31 @@ void CalculateBarycentricCoordinates()
     // U(M300) <- E1(M100) / E_SUM(M700)
     asm(
         "vdiv.q R300, R100, R700;"
-        "vdiv.q R301, R101, R701;"
-        "vdiv.q R302, R102, R702;"
-        "vdiv.q R303, R103, R703;");
+        "vdiv.q R400, R101, R701;"
+        "vdiv.q R500, R102, R702;"
+        "vdiv.q R600, R103, R703;");
 
     // V(M400) <- E1(M200) / E_SUM(M700)
     asm(
-        "vdiv.q R400, R200, R700;"
+        "vdiv.q R301, R200, R700;"
         "vdiv.q R401, R201, R701;"
-        "vdiv.q R402, R202, R702;"
-        "vdiv.q R403, R203, R703;");
+        "vdiv.q R501, R202, R702;"
+        "vdiv.q R601, R203, R703;");
+
+    // Set a 1-filled vector to later perform w = 1-u-w
+    asm(
+        "vone.q R700;");
 
     // W(M500) <- 1(R700) - U(M300) - V(M400)
     asm(
-        "vone.q R700;"
-
-        "vsub.q R500, R700, R300;"
-        "vsub.q R500, R500, R400;"
-        "vsub.q R501, R700, R301;"
-        "vsub.q R501, R501, R401;"
-        "vsub.q R502, R700, R302;"
-        "vsub.q R502, R502, R402;"
-        "vsub.q R503, R700, R303;"
-        "vsub.q R503, R503, R403;");
+        "vsub.q R302, R700, R300;"
+        "vsub.q R302, R302, R301;"
+        "vsub.q R402, R700, R400;"
+        "vsub.q R402, R402, R401;"
+        "vsub.q R502, R700, R500;"
+        "vsub.q R502, R502, R501;"
+        "vsub.q R602, R700, R600;"
+        "vsub.q R602, R602, R601;");
 }
 
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
