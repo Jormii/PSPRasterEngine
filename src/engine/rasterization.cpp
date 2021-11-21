@@ -43,16 +43,16 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
 
     // Create fragments
     Vec4i bbox{TriangleBBOX(screenSpace[tri.x], screenSpace[tri.y], screenSpace[tri.z])};
+
+    float_psp startY{static_cast<float_psp>(bbox.y) + 0.5f};
+    Vec2f pixel{
+        static_cast<float_psp>(bbox.x) + 0.5f,
+        startY};
+
     for (int_psp x{bbox.x}; x <= bbox.z; ++x)
     {
         for (int_psp y{bbox.y}; y <= bbox.w; ++y)
         {
-            DebugStart(DebugIDs::CREATE_PIXEL);
-            Vec2f pixel{
-                static_cast<float_psp>(x) + 0.5f,
-                static_cast<float_psp>(y) + 0.5f};
-            DebugEnd(DebugIDs::CREATE_PIXEL);
-
             DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
             bool withinTri{PixelWithinTriangle(pixel, edgeFuncs)};
             DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
@@ -63,7 +63,12 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
                 CreateFragment(tri, buffer, fragments, edgeFuncs, x, y, pixel);
                 DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
             }
+
+            pixel.y += 1.0f;
         }
+
+        pixel.x += 1.0f;
+        pixel.y = startY;
     }
 }
 
