@@ -36,10 +36,113 @@ bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
 Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c);
 void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges);
+void CalculateBarycentricCoordinates();
 
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel);
 Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
+
+bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
+{
+    const Vec3f &v1{buffer[tri.x].viewPos};
+    const Vec3f &v2{buffer[tri.y].viewPos};
+    const Vec3f &v3{buffer[tri.z].viewPos};
+
+    Vec3f v1v2{v2 - v1};
+    Vec3f v1v3{v3 - v1};
+    Vec3f faceNormal{Vec3f::Cross(v1v2, v1v3)};
+
+    float_psp dot{Vec3f::Dot(v1, faceNormal)};
+    return dot <= 0.0f;
+}
+
+void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments)
+{
+    // Edge equations
+    EdgeFunction edges[]{
+        EdgeFunction::FromPoints(screenSpace[tri.x], screenSpace[tri.y]),
+        EdgeFunction::FromPoints(screenSpace[tri.y], screenSpace[tri.z]),
+        EdgeFunction::FromPoints(screenSpace[tri.z], screenSpace[tri.x])};
+
+    // Create fragments
+    Vec4i bbox{TriangleBBOX(screenSpace[tri.x], screenSpace[tri.y], screenSpace[tri.z])};
+
+    float_psp startY{static_cast<float_psp>(bbox.y) + 0.5f};
+    Vec2f pixel{
+        static_cast<float_psp>(bbox.x) + 0.5f,
+        startY};
+
+    for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
+    {
+        for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
+        {
+            CalculateEdgeFunctions(pixel, edges);
+            CalculateBarycentricCoordinates();
+
+            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
+            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
+
+            // TODO: Not correct. Temporal.
+            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
+            CreateFragment(tri, buffer, fragments, edges, x, y, pixel);
+            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
+        }
+        pixel.y += static_cast<float_psp>(GRID_SIZE);
+    }
+
+    pixel.x += static_cast<float_psp>(GRID_SIZE);
+    pixel.y = startY;
+}
+
+Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
+{
+    // Load vectors into VFPU
+    asm(
+        "lv.s S000, 0(%0);  lv.s S010, 4(%0);"
+        "lv.s S001, 0(%1);  lv.s S011, 4(%1);"
+        "lv.s S002, 0(%2);  lv.s S012, 4(%2);"
+        :
+        : "r"(&a), "r"(&b), "r"(&c)
+        :);
+
+    // Load screen bounds
+    asm(
+        "vzero.p R020;"
+        "lv.s S021, 0(%0); lv.s S031, 0(%1);"
+        :
+        : "r"(&WIDTH_MINUS_1), "r"(&HEIGHT_MINUS_1)
+        :);
+
+    // Get BBOX
+    // Lower bound
+    asm(
+        "vmin.p R003, R000, R001;"
+        "vmin.p R003, R003, R002;"
+        "vmax.p R003, R003, R020;");
+
+    // Upper bound
+    asm(
+        "vmax.p R023, R000, R001;"
+        "vmax.p R023, R023, R002;"
+        "vmin.p R023, R023, R021;");
+
+    // Store BBOX
+    Vec4i __attribute__((aligned(16))) bbox;
+    asm(
+        "vf2in.q R003, R003, 0;"
+        "sv.q R003, 0(%0);"
+        :
+        : "r"(&bbox)
+        :);
+
+    // Scale to fit grid
+    bbox.x = (bbox.x) - (bbox.x % GRID_SIZE);
+    bbox.y = (bbox.y) - (bbox.y % GRID_SIZE);
+    bbox.z = (bbox.z) - (bbox.z % GRID_SIZE);
+    bbox.w = (bbox.w) - (bbox.w % GRID_SIZE);
+
+    return bbox;
+}
 
 void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges)
 {
@@ -149,110 +252,45 @@ void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges)
         "vadd.q C230, C230, R500;");
 }
 
-bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
+void CalculateBarycentricCoordinates()
 {
-    const Vec3f &v1{buffer[tri.x].viewPos};
-    const Vec3f &v2{buffer[tri.y].viewPos};
-    const Vec3f &v3{buffer[tri.z].viewPos};
-
-    Vec3f v1v2{v2 - v1};
-    Vec3f v1v3{v3 - v1};
-    Vec3f faceNormal{Vec3f::Cross(v1v2, v1v3)};
-
-    float_psp dot{Vec3f::Dot(v1, faceNormal)};
-    return dot <= 0.0f;
-}
-
-void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments)
-{
-    // Edge equations
-    EdgeFunction edges[]{
-        EdgeFunction::FromPoints(screenSpace[tri.x], screenSpace[tri.y]),
-        EdgeFunction::FromPoints(screenSpace[tri.y], screenSpace[tri.z]),
-        EdgeFunction::FromPoints(screenSpace[tri.z], screenSpace[tri.x])};
-
-    // Create fragments
-    Vec4i bbox{TriangleBBOX(screenSpace[tri.x], screenSpace[tri.y], screenSpace[tri.z])};
-
-    float_psp startY{static_cast<float_psp>(bbox.y) + 0.5f};
-    Vec2f pixel{
-        static_cast<float_psp>(bbox.x) + 0.5f,
-        startY};
-
-    for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
-    {
-        for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
-        {
-            CalculateEdgeFunctions(pixel, edges);
-
-            Vec3f edgeEval{
-                edges[0].Evaluate(pixel),
-                edges[1].Evaluate(pixel),
-                edges[2].Evaluate(pixel)};
-
-            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
-            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
-
-            // TODO: Not correct. Temporal.
-            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
-            CreateFragment(tri, buffer, fragments, edges, x, y, pixel);
-            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
-        }
-        pixel.y += static_cast<float_psp>(GRID_SIZE);
-    }
-
-    pixel.x += static_cast<float_psp>(GRID_SIZE);
-    pixel.y = startY;
-}
-
-Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
-{
-    // Load vectors into VFPU
+    // E_SUM(M700) <- E0(M000) + E1(M100) + E20(M200)
     asm(
-        "lv.s S000, 0(%0);  lv.s S010, 4(%0);"
-        "lv.s S001, 0(%1);  lv.s S011, 4(%1);"
-        "lv.s S002, 0(%2);  lv.s S012, 4(%2);"
-        :
-        : "r"(&a), "r"(&b), "r"(&c)
-        :);
+        "vadd.q R700, R000, R100;"
+        "vadd.q R700, R700, R200;"
+        "vadd.q R701, R001, R101;"
+        "vadd.q R701, R701, R201;"
+        "vadd.q R702, R002, R102;"
+        "vadd.q R702, R702, R202;"
+        "vadd.q R703, R003, R103;"
+        "vadd.q R703, R703, R203;");
 
-    // Load screen bounds
+    // U(M300) <- E1(M100) / E_SUM(M700)
     asm(
-        "vzero.p R020;"
-        "lv.s S021, 0(%0); lv.s S031, 0(%1);"
-        :
-        : "r"(&WIDTH_MINUS_1), "r"(&HEIGHT_MINUS_1)
-        :);
+        "vdiv.q R300, R100, R700;"
+        "vdiv.q R301, R101, R701;"
+        "vdiv.q R302, R102, R702;"
+        "vdiv.q R303, R103, R703;");
 
-    // Get BBOX
-    // Lower bound
+    // V(M400) <- E1(M200) / E_SUM(M700)
     asm(
-        "vmin.p R003, R000, R001;"
-        "vmin.p R003, R003, R002;"
-        "vmax.p R003, R003, R020;");
+        "vdiv.q R400, R200, R700;"
+        "vdiv.q R401, R201, R701;"
+        "vdiv.q R402, R202, R702;"
+        "vdiv.q R403, R203, R703;");
 
-    // Upper bound
+    // W(M500) <- 1(R700) - U(M300) - V(M400)
     asm(
-        "vmax.p R023, R000, R001;"
-        "vmax.p R023, R023, R002;"
-        "vmin.p R023, R023, R021;");
+        "vone.q R700;"
 
-    // Store BBOX
-    Vec4i __attribute__((aligned(16))) bbox;
-    asm(
-        "vf2in.q R003, R003, 0;"
-        "sv.q R003, 0(%0);"
-        :
-        : "r"(&bbox)
-        :);
-
-    // Scale to fit grid
-    bbox.x = (bbox.x) - (bbox.x % GRID_SIZE);
-    bbox.y = (bbox.y) - (bbox.y % GRID_SIZE);
-    bbox.z = (bbox.z) - (bbox.z % GRID_SIZE);
-    bbox.w = (bbox.w) - (bbox.w % GRID_SIZE);
-
-    return bbox;
+        "vsub.q R500, R700, R300;"
+        "vsub.q R500, R500, R400;"
+        "vsub.q R501, R700, R301;"
+        "vsub.q R501, R501, R401;"
+        "vsub.q R502, R700, R302;"
+        "vsub.q R502, R502, R402;"
+        "vsub.q R503, R700, R303;"
+        "vsub.q R503, R503, R403;");
 }
 
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
