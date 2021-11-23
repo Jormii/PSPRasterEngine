@@ -23,7 +23,9 @@ constexpr float_psp MAX_SCREEN[]{
     static_cast<float_psp>(PSP_HEIGHT - 1.0f)};
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
-void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
+void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments);
+void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer);
+
 Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c);
 void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges);
 void CalculateBarycentricCoordinates();
@@ -34,6 +36,7 @@ Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 {
+    // TODO: Improve by using the VFPU
     const Vec3f &v1{buffer[tri.x].viewPos};
     const Vec3f &v2{buffer[tri.y].viewPos};
     const Vec3f &v3{buffer[tri.z].viewPos};
@@ -46,8 +49,11 @@ bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
     return dot <= 0.0f;
 }
 
-void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments)
+void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments)
 {
+    UploadScreenCoordinatesToVFPU(tri, buffer);
+
+#if 0
     // Edge equations
     EdgeFunction edges[]{
         EdgeFunction::FromPoints(screenSpace[tri.x], screenSpace[tri.y]),
@@ -82,6 +88,23 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const V
 
     pixel.x += static_cast<float_psp>(GRID_SIZE);
     pixel.y = startY;
+#endif
+}
+
+void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer)
+{
+    LOAD_VEC2_ROW_L(7, 0, &(buffer[tri.x].position));
+    LOAD_VEC2_ROW_L(7, 1, &(buffer[tri.y].position));
+    LOAD_VEC2_ROW_L(7, 2, &(buffer[tri.z].position));
+
+    asm(
+        // Add 1
+        "vadd.t C100, C700, C030;"
+        "vadd.t C110, C710, C030;"
+
+        // Multiply by half width/height
+        "vmul.t C100, C100, C000;"
+        "vmul.t C110, C110, C010;");
 }
 
 Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
@@ -362,53 +385,8 @@ Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
     return Vec3f{u, v, w};
 }
 
-std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer)
-{
-    // Calculate screen-space coordinates
-    Vec2f *screenSpace{new Vec2f[mesh.vertexCount]};
-    for (size_t i{0}; i < mesh.vertexCount; ++i)
-    {
-#if 0
-        screenSpace[i] = VertexScreenCoordinate(buffer[i].position);
-#endif
-    }
-
-    // Generate fragments
-    std::vector<Fragment> fragments;
-    for (size_t i{0}; i < mesh.triangleCount; ++i)
-    {
-        const Vec3i &tri{mesh.triangles[i]};
-        bool visible{TriangleIsVisible(tri, buffer)};
-
-        if (visible)
-        {
-            RasterizeTriangle(tri, buffer, screenSpace, fragments);
-        }
-    }
-
-    return fragments;
-}
-
-Vec2f VertexScreenCoordinate(const Vec3f &p)
-{
-    return Vec2f{
-        PSP_HALF_WIDTH * (p.x + 1.0f),
-        PSP_HALF_HEIGHT * (p.y + 1.0f)};
-}
-
 void InitializeVFPUForRasterization()
 {
-    /**
-     * M000 stores constants. Layout:
-     *      (   HW      HH      0       1   )
-     *      (   HW      HH      0       1   )
-     *      (   HW      HH      0       1   )
-     *      (  WMax    HMax     0       1   )
-     * 
-     * where:   HW, HH are the half width and half height of the screen
-     *          WMax, HMax are the maximum screen coordinates -1
-     */
-
     // Set 0 and 1 vectors first
     asm("vzero.q C020;"
         "vone.q C030;");
@@ -421,4 +399,21 @@ void InitializeVFPUForRasterization()
 
     // Load max width/height
     LOAD_VEC2_ROW_L(0, 3, MAX_SCREEN);
+}
+
+std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer)
+{
+    std::vector<Fragment> fragments;
+    for (size_t i{0}; i < mesh.triangleCount; ++i)
+    {
+        const Vec3i &tri{mesh.triangles[i]};
+        bool visible{TriangleIsVisible(tri, buffer)};
+
+        if (visible)
+        {
+            RasterizeTriangle(tri, buffer, fragments);
+        }
+    }
+
+    return fragments;
 }
