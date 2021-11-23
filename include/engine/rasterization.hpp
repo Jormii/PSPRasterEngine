@@ -23,6 +23,9 @@
  * 
  * M100 stores the screen coordinates (3x2 matrix starting in S100)
  * 
+ * M200 stores the edge function's variables a, b, c in a 3x3 matrix where
+ *      (b, a, c)i are columns. a AND b ARE SWAPPED
+ * 
  * M700 is used for auxiliary operations
  */
 

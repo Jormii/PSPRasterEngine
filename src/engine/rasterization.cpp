@@ -25,6 +25,7 @@ constexpr float_psp MAX_SCREEN[]{
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments);
 void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer);
+void InitializeEdgeFunctions();
 
 Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c);
 void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges);
@@ -52,6 +53,7 @@ bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments)
 {
     UploadScreenCoordinatesToVFPU(tri, buffer);
+    InitializeEdgeFunctions();
 
 #if 0
     // Edge equations
@@ -105,6 +107,26 @@ void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buf
         // Multiply by half width/height
         "vmul.t C100, C100, C000;"
         "vmul.t C110, C110, C010;");
+}
+
+void InitializeEdgeFunctions()
+{
+    // Calculate vectors => Parameters b, -a
+    // b in C200, -a in C210
+    asm(
+        "vsub.p R200, R101, R100;" // A -> B
+        "vsub.p R201, R102, R101;" // B -> C
+        "vsub.p R202, R100, R102;" // C -> A
+    );
+
+    // Calculate c
+    asm(
+        "vmul.t C700, C210, C100;" // -a * p.x
+        "vmul.t C710, C200, C110;" // b * p.y
+        "vsub.t C220, C700, C710;");
+
+    // Negate -a
+    asm("vneg.t C210, C210;");
 }
 
 Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
