@@ -53,10 +53,17 @@ bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments)
 {
+    DebugStart(DebugIDs::UPLOAD_COORDINATES);
     UploadScreenCoordinatesToVFPU(tri, buffer);
-    InitializeEdgeFunctions();
+    DebugEnd(DebugIDs::UPLOAD_COORDINATES);
 
+    DebugStart(DebugIDs::INIT_EDGES);
+    InitializeEdgeFunctions();
+    DebugEnd(DebugIDs::INIT_EDGES);
+
+    DebugStart(DebugIDs::BBOX);
     Vec4i bbox{TriangleBBOX()};
+    DebugEnd(DebugIDs::BBOX);
     for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
     {
         for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
@@ -88,13 +95,8 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
             CalculateEdgeFunctions(pixel, edges);
             CalculateBarycentricCoordinates();
 
-            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
-            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_WITHIN_TRIANGLE);
-
             // TODO: Not correct. Temporal.
-            DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
             CreateFragment(tri, buffer, fragments, edges, x, y, pixel);
-            DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_INTERPOLATION);
         }
         pixel.y += static_cast<float_psp>(GRID_SIZE);
     }
@@ -171,9 +173,6 @@ Vec4i TriangleBBOX()
         GRID_SIZE * static_cast<int_psp>(bboxDivGridSize.z),
         GRID_SIZE * static_cast<int_psp>(bboxDivGridSize.w)};
 
-    std::cout << bboxDivGridSize << "\n";
-    std::cout << bbox << "\n\n";
-
     return bbox;
 }
 
@@ -245,9 +244,7 @@ bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
 
 void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel)
 {
-    // DebugStart(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BARY_COORDS);
     Vec3f baryCoords{BarycentricCoordinates(pixel, edgeFuncs)};
-    // DebugEnd(DebugIDs::RASTERIZATION_RASTERIZE_TRIANGLE_BARY_COORDS);
 
     float_psp depth{
         baryCoords.x * buffer[tri.x].position.z +
