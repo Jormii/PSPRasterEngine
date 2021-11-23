@@ -10,7 +10,7 @@
 #include "vec2f.hpp"
 #include "vec3f.hpp"
 
+void InitializeVFPUForRasterization();
 std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer);
-Vec2f VertexScreenCoordinate(const Vec3f &p);
 
 #endif

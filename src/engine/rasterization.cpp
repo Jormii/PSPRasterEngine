@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "vfpu.hpp"
 #include "debug.hpp"
 #include "constants.hpp"
 #include "edge.hpp"
@@ -9,29 +10,17 @@
 #include "vec2i.hpp"
 #include "vec4i.hpp"
 
-/***
- * NOTES ABOUT RASTERIZATION
- * General procedure: If a triangle is visible, then rasterize it
- * Rasterization steps:
- *  - BBOX: In terms of grid, aka, values returned are multiples of GRID_SIZE=4
- *  - Edge function:
- *      Results are stored in matrixes M000, M100 & M200
- *      M300, M400, M500 store ei(x, y) for the bottom left pixel in the grid and parameters a, b of e
- *          Their 4th row are used for temporal calculations
- *      R600 stores a constant (0, 1, 2, 3) vector used to calculate ei(X, Y) being XY the pixels in the grid
- *  - Weights: Arranged along M300-M600. Each column is a XYZW weight with W=0
- *          C300 belongs to to the bottom left pixel in the grid
- *  - Interpolation: TODO
- *  - Visibility and fragment creation: TODO
- */
-
-#define GRID_SIZE 4
+#define GRID_SIZE 2
 #define GRID_CELLS (GRID_SIZE * GRID_SIZE)
 
 const Vec4f __attribute__((aligned(16))) ZERO_TO_THREE{0.0f, 1.0f, 2.0f, 3.0f};
 
-constexpr float_psp WIDTH_MINUS_1{PSP_WIDTH - 1.0f};
-constexpr float_psp HEIGHT_MINUS_1{PSP_HEIGHT - 1.0f};
+constexpr float_psp HALF_SCREEN[]{
+    0.5f * static_cast<float_psp>(PSP_WIDTH),
+    0.5f * static_cast<float_psp>(PSP_HEIGHT)};
+constexpr float_psp MAX_SCREEN[]{
+    static_cast<float_psp>(PSP_WIDTH - 1.0f),
+    static_cast<float_psp>(PSP_HEIGHT - 1.0f)};
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, const Vec2f *screenSpace, std::vector<Fragment> &fragments, size_t width, size_t height);
@@ -107,12 +96,14 @@ Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
         :);
 
     // Load screen bounds
+#if 0
     asm(
         "vzero.p R020;"
         "lv.s S021, 0(%0); lv.s S031, 0(%1);"
         :
         : "r"(&WIDTH_MINUS_1), "r"(&HEIGHT_MINUS_1)
         :);
+#endif
 
     // Get BBOX
     // Lower bound
@@ -377,7 +368,9 @@ std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer
     Vec2f *screenSpace{new Vec2f[mesh.vertexCount]};
     for (size_t i{0}; i < mesh.vertexCount; ++i)
     {
+#if 0
         screenSpace[i] = VertexScreenCoordinate(buffer[i].position);
+#endif
     }
 
     // Generate fragments
@@ -401,4 +394,31 @@ Vec2f VertexScreenCoordinate(const Vec3f &p)
     return Vec2f{
         PSP_HALF_WIDTH * (p.x + 1.0f),
         PSP_HALF_HEIGHT * (p.y + 1.0f)};
+}
+
+void InitializeVFPUForRasterization()
+{
+    /**
+     * M000 stores constants. Layout:
+     *      (   HW      HH      0       1   )
+     *      (   HW      HH      0       1   )
+     *      (   HW      HH      0       1   )
+     *      (  WMax    HMax     0       1   )
+     * 
+     * where:   HW, HH are the half width and half height of the screen
+     *          WMax, HMax are the maximum screen coordinates -1
+     */
+
+    // Set 0 and 1 vectors first
+    asm("vzero.q C020;"
+        "vone.q C030;");
+
+    // Load half width/height and fill the other rows by addition
+    LOAD_VEC2_ROW_L(0, 0, HALF_SCREEN);
+    asm(
+        "vadd.p R001, R000, C020;"
+        "vadd.p R002, R000, C020;");
+
+    // Load max width/height
+    LOAD_VEC2_ROW_L(0, 3, MAX_SCREEN);
 }

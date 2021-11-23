@@ -115,6 +115,7 @@ void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
 
     // Rasterize
     DebugStart(DebugIDs::RASTERIZATION);
+    InitializeVFPUForRasterization();
     std::vector<Fragment> fragments{Rasterize(mesh, buffer)};
     DebugEnd(DebugIDs::RASTERIZATION);
 
