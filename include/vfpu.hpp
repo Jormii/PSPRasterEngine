@@ -10,6 +10,10 @@
  * VFPU's registers format is MCR
  */
 
+/***
+ * SCALAR OPERATIONS
+ */
+
 #define LOAD_SCALAR(M, R, C, PTR)        \
     {                                    \
         asm(                             \
@@ -62,6 +66,15 @@
  * VEC4 OPERATIONS
  */
 
+#define LOAD_VEC4_COL(M, C, PTR)       \
+    {                                  \
+        asm(                           \
+            "lv.q C" #M #C "0, 0(%0);" \
+            :                          \
+            : "r"(PTR)                 \
+            :);                        \
+    }
+
 #define STORE_VEC4_ROW(M, R, PTR)         \
     {                                     \
         asm(                              \
@@ -69,6 +82,15 @@
             :                             \
             : "r"(PTR)                    \
             :);                           \
+    }
+
+#define STORE_VEC4_COL(M, C, PTR)      \
+    {                                  \
+        asm(                           \
+            "sv.q C" #M #C "0, 0(%0);" \
+            :                          \
+            : "r"(PTR)                 \
+            :);                        \
     }
 
 #endif

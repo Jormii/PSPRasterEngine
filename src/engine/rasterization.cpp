@@ -15,10 +15,13 @@
 
 const Vec4f __attribute__((aligned(16))) ZERO_TO_THREE{0.0f, 1.0f, 2.0f, 3.0f};
 
-constexpr float_psp HALF_SCREEN[]{
+constexpr float_psp VFPU_ALIGN GRID_SIZE_VEC4[]{GRID_SIZE, GRID_SIZE, GRID_SIZE, GRID_SIZE};
+
+constexpr float_psp HALF_SCREEN_VEC2[]{
     0.5f * static_cast<float_psp>(PSP_WIDTH),
     0.5f * static_cast<float_psp>(PSP_HEIGHT)};
-constexpr float_psp MAX_SCREEN[]{
+
+constexpr float_psp MAX_SCREEN_VEC2[]{
     static_cast<float_psp>(PSP_WIDTH - 1.0f),
     static_cast<float_psp>(PSP_HEIGHT - 1.0f)};
 
@@ -26,11 +29,9 @@ bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments);
 void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer);
 void InitializeEdgeFunctions();
+Vec4i TriangleBBOX();
 
-Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c);
-void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges);
 void CalculateBarycentricCoordinates();
-
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel);
 Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
@@ -55,6 +56,16 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
     UploadScreenCoordinatesToVFPU(tri, buffer);
     InitializeEdgeFunctions();
 
+    Vec4i bbox{TriangleBBOX()};
+    for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
+    {
+        for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
+        {
+            Vec2f pixel{
+                static_cast<float_psp>(x) + 0.5f,
+                static_cast<float_psp>(y) + 0.5f};
+        }
+    }
 #if 0
     // Edge equations
     EdgeFunction edges[]{
@@ -129,164 +140,41 @@ void InitializeEdgeFunctions()
     asm("vneg.t C210, C210;");
 }
 
-Vec4i TriangleBBOX(const Vec2f &a, const Vec2f &b, const Vec2f &c)
+Vec4i TriangleBBOX()
 {
-    // Load vectors into VFPU
     asm(
-        "lv.s S000, 0(%0);  lv.s S010, 4(%0);"
-        "lv.s S001, 0(%1);  lv.s S011, 4(%1);"
-        "lv.s S002, 0(%2);  lv.s S012, 4(%2);"
-        :
-        : "r"(&a), "r"(&b), "r"(&c)
-        :);
+        // Lower bound
+        "vmin.p C700, R100, R101;"
+        "vmin.p C700, C700, R102;"
 
-    // Load screen bounds
-#if 0
+        // Upper bound
+        "vmax.p C702, R100, R101;"
+        "vmax.p C702, C702, R102;");
+
+    // Fit to screen bounds
     asm(
-        "vzero.p R020;"
-        "lv.s S021, 0(%0); lv.s S031, 0(%1);"
-        :
-        : "r"(&WIDTH_MINUS_1), "r"(&HEIGHT_MINUS_1)
-        :);
-#endif
+        "vmax.p C700, C700, C020;" // Lower corner. C020 is the 0 vector
+        "vmin.p C702, C702, R003;" // Upper corner
+    );
 
-    // Get BBOX
-    // Lower bound
-    asm(
-        "vmin.p R003, R000, R001;"
-        "vmin.p R003, R003, R002;"
-        "vmax.p R003, R003, R020;");
+    // TODO: There might be a way to perform all of these in the VFPU
+    // Translate to "grid-space"
+    LOAD_VEC4_COL(7, 1, GRID_SIZE_VEC4);
+    asm("vdiv.q C700, C700, C710;"); // BBOX / GRID_SIZE
 
-    // Upper bound
-    asm(
-        "vmax.p R023, R000, R001;"
-        "vmax.p R023, R023, R002;"
-        "vmin.p R023, R023, R021;");
+    Vec4f VFPU_ALIGN bboxDivGridSize;
+    STORE_VEC4_COL(7, 0, &bboxDivGridSize);
 
-    // Store BBOX
-    Vec4i __attribute__((aligned(16))) bbox;
-    asm(
-        "vf2in.q R003, R003, 0;"
-        "sv.q R003, 0(%0);"
-        :
-        : "r"(&bbox)
-        :);
+    Vec4i bbox{
+        GRID_SIZE * static_cast<int_psp>(bboxDivGridSize.x),
+        GRID_SIZE * static_cast<int_psp>(bboxDivGridSize.y),
+        GRID_SIZE * static_cast<int_psp>(bboxDivGridSize.z),
+        GRID_SIZE * static_cast<int_psp>(bboxDivGridSize.w)};
 
-    // Scale to fit grid
-    bbox.x = (bbox.x) - (bbox.x % GRID_SIZE);
-    bbox.y = (bbox.y) - (bbox.y % GRID_SIZE);
-    bbox.z = (bbox.z) - (bbox.z % GRID_SIZE);
-    bbox.w = (bbox.w) - (bbox.w % GRID_SIZE);
+    std::cout << bboxDivGridSize << "\n";
+    std::cout << bbox << "\n\n";
 
     return bbox;
-}
-
-void CalculateEdgeFunctions(const Vec2f &pixel, const EdgeFunction *edges)
-{
-    // Set up
-    asm(
-        "lv.q R600, 0(%0);"
-        :
-        : "r"(&ZERO_TO_THREE)
-        :);
-
-    // Store edges' variables
-    float_psp f0{edges[0].Evaluate(pixel)};
-    asm(
-        "lv.s S300, 0(%0);  lv.s S310, 0(%0); lv.s S320, 0(%0);  lv.s S330, 0(%0);"
-        "lv.s S301, 0(%1);  lv.s S311, 0(%1); lv.s S321, 0(%1);  lv.s S331, 0(%1);"
-        "lv.s S302, 0(%2);  lv.s S312, 0(%2); lv.s S322, 0(%2);  lv.s S332, 0(%2);"
-        :
-        : "r"(&f0), "r"(&edges[0].a), "r"(&edges[0].b)
-        :);
-
-    float_psp f1{edges[1].Evaluate(pixel)};
-    asm(
-        "lv.s S400, 0(%0);  lv.s S410, 0(%0); lv.s S420, 0(%0);  lv.s S430, 0(%0);"
-        "lv.s S401, 0(%1);  lv.s S411, 0(%1); lv.s S421, 0(%1);  lv.s S431, 0(%1);"
-        "lv.s S402, 0(%2);  lv.s S412, 0(%2); lv.s S422, 0(%2);  lv.s S432, 0(%2);"
-        :
-        : "r"(&f1), "r"(&edges[1].a), "r"(&edges[1].b)
-        :);
-
-    float_psp f2{edges[2].Evaluate(pixel)};
-    asm(
-        "lv.s S500, 0(%0);  lv.s S510, 0(%0); lv.s S520, 0(%0);  lv.s S530, 0(%0);"
-        "lv.s S501, 0(%1);  lv.s S511, 0(%1); lv.s S521, 0(%1);  lv.s S531, 0(%1);"
-        "lv.s S502, 0(%2);  lv.s S512, 0(%2); lv.s S522, 0(%2);  lv.s S532, 0(%2);"
-        :
-        : "r"(&f2), "r"(&edges[2].a), "r"(&edges[2].b)
-        :);
-
-    // Calculate
-    asm(
-        // Edge 0
-        // M000(rows) <- I*A0
-        "vmul.q R000, R301, R600;"
-        "vmul.q R001, R301, R600;"
-        "vmul.q R002, R301, R600;"
-        "vmul.q R003, R301, R600;"
-
-        // R303 <- J*B0
-        "vmul.q R303, R302, R600;"
-
-        // M000(columns) <- M000(columns) + J*B0
-        "vadd.q C000, C000, R303;"
-        "vadd.q C010, C010, R303;"
-        "vadd.q C020, C020, R303;"
-        "vadd.q C030, C030, R303;"
-
-        // M000 <- M000 + R300 (e0(x, y))
-        "vadd.q C000, C000, R300;"
-        "vadd.q C010, C010, R300;"
-        "vadd.q C020, C020, R300;"
-        "vadd.q C030, C030, R300;");
-
-    asm(
-        // Edge 1
-        // M100(rows) <- I*A1
-        "vmul.q R100, R401, R600;"
-        "vmul.q R101, R401, R600;"
-        "vmul.q R102, R401, R600;"
-        "vmul.q R103, R401, R600;"
-
-        // R403 <- J*B1
-        "vmul.q R403, R402, R600;"
-
-        // M100(columns) <- M100(columns) + J*B1
-        "vadd.q C100, C100, R403;"
-        "vadd.q C110, C110, R403;"
-        "vadd.q C120, C120, R403;"
-        "vadd.q C130, C130, R403;"
-
-        // M100 <- M100 + R400 (e1(x, y))
-        "vadd.q C100, C100, R400;"
-        "vadd.q C110, C110, R400;"
-        "vadd.q C120, C120, R400;"
-        "vadd.q C130, C130, R400;");
-
-    asm(
-        // Edge 2
-        // M200(rows) <- I*A2
-        "vmul.q R200, R501, R600;"
-        "vmul.q R201, R501, R600;"
-        "vmul.q R202, R501, R600;"
-        "vmul.q R203, R501, R600;"
-
-        // R503 <- J*B2
-        "vmul.q R503, R402, R600;"
-
-        // M200(columns) <- M200(columns) + J*B2
-        "vadd.q C200, C200, R503;"
-        "vadd.q C210, C210, R503;"
-        "vadd.q C220, C220, R503;"
-        "vadd.q C230, C230, R503;"
-
-        // M200 <- M200 + R500 (e1(x, y))
-        "vadd.q C200, C200, R500;"
-        "vadd.q C210, C210, R500;"
-        "vadd.q C220, C220, R500;"
-        "vadd.q C230, C230, R500;");
 }
 
 void CalculateBarycentricCoordinates()
@@ -414,13 +302,13 @@ void InitializeVFPUForRasterization()
         "vone.q C030;");
 
     // Load half width/height and fill the other rows by addition
-    LOAD_VEC2_ROW_L(0, 0, HALF_SCREEN);
+    LOAD_VEC2_ROW_L(0, 0, HALF_SCREEN_VEC2);
     asm(
         "vadd.p R001, R000, C020;"
         "vadd.p R002, R000, C020;");
 
     // Load max width/height
-    LOAD_VEC2_ROW_L(0, 3, MAX_SCREEN);
+    LOAD_VEC2_ROW_L(0, 3, MAX_SCREEN_VEC2);
 }
 
 std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer)
