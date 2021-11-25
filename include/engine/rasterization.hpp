@@ -28,10 +28,12 @@
  * 
  * M300-M500 are grid-dependent
  * 
- * M300 stores Ei(X, Y). (E0(x, y), E1(x, y), E2(x, y)) are rows
- *      (Ei(x, y), Ei(x+1, y), Ei(x, y+1), Ei(x+1, y+1)) are columns
+ * M300 stores Ei(X, Y). (E0(x, y), E1(x, y), E2(x, y)) are columns
+ *      (Ei(x, y), Ei(x+1, y), Ei(x, y+1), Ei(x+1, y+1)) are rows
  * 
- * M500 store the barycentric coordinates. (w0, w1, w2, 0) columns
+ * M300's fourth row stores if the pixel is within a triangle
+ * 
+ * M400 store the barycentric coordinates. (w0, w1, w2, 0) columns
  * 
  * M700 is used for auxiliary operations
  */

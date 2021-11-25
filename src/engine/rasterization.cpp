@@ -31,12 +31,10 @@ void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buf
 void InitializeEdgeFunctions();
 Vec4i TriangleBBOX();
 void EvaluateEdgeFunction(const Vec2f pixel);
+int_psp CheckInsideTriangle();
 void CalculateBarycentricCoordinates();
 
-Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edges);
-bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel);
-Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 {
@@ -75,65 +73,14 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
                 static_cast<float_psp>(y) + 0.5f};
 
             EvaluateEdgeFunction(pixel);
-            CalculateBarycentricCoordinates();
+            int_psp inside{CheckInsideTriangle()};
 
-            // TODO: Remove
-            Vec2f screenSpace[]{
-                Vec2f{
-                    (buffer[tri.x].position.x + 1.0f) * PSP_HALF_WIDTH,
-                    (buffer[tri.x].position.y + 1.0f) * PSP_HALF_HEIGHT},
-                Vec2f{
-                    (buffer[tri.y].position.x + 1.0f) * PSP_HALF_WIDTH,
-                    (buffer[tri.y].position.y + 1.0f) * PSP_HALF_HEIGHT},
-                Vec2f{
-                    (buffer[tri.z].position.x + 1.0f) * PSP_HALF_WIDTH,
-                    (buffer[tri.z].position.y + 1.0f) * PSP_HALF_HEIGHT}};
-
-            EdgeFunction edges[]{
-                EdgeFunction::FromPoints(screenSpace[0], screenSpace[1]),
-                EdgeFunction::FromPoints(screenSpace[1], screenSpace[2]),
-                EdgeFunction::FromPoints(screenSpace[2], screenSpace[0])};
-
-            std::cout << pixel << "\n";
-            std::cout << BarycentricCoordinates(pixel, edges) << "\n";
-            std::cout << BarycentricCoordinates(Vec2f{pixel.x + 1, pixel.y}, edges) << "\n";
-            std::cout << BarycentricCoordinates(Vec2f{pixel.x, pixel.y + 1}, edges) << "\n";
-            std::cout << BarycentricCoordinates(Vec2f{pixel.x + 1, pixel.y + 1}, edges) << "\n";
-            std::cout << "\n";
+            if (inside > 0)
+            {
+                CalculateBarycentricCoordinates();
+            }
         }
     }
-
-#if 0
-    // Edge equations
-    EdgeFunction edges[]{
-        EdgeFunction::FromPoints(screenSpace[tri.x], screenSpace[tri.y]),
-        EdgeFunction::FromPoints(screenSpace[tri.y], screenSpace[tri.z]),
-        EdgeFunction::FromPoints(screenSpace[tri.z], screenSpace[tri.x])};
-
-    // Create fragments
-    Vec4i bbox{TriangleBBOX(screenSpace[tri.x], screenSpace[tri.y], screenSpace[tri.z])};
-
-    float_psp startY{static_cast<float_psp>(bbox.y) + 0.5f};
-    Vec2f pixel{
-        static_cast<float_psp>(bbox.x) + 0.5f,
-        startY};
-
-    for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
-    {
-        for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
-        {
-            CalculateEdgeFunctions(pixel, edges);
-            CalculateBarycentricCoordinates();
-
-            // TODO: Not correct. Temporal.
-            CreateFragment(tri, buffer, fragments, edges, x, y, pixel);
-        }
-        pixel.y += static_cast<float_psp>(GRID_SIZE);
-    }
-
-    pixel.x += static_cast<float_psp>(GRID_SIZE);
-    pixel.y = startY;
-#endif
 }
 
 void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer)
@@ -234,10 +181,104 @@ void EvaluateEdgeFunction(const Vec2f pixel)
     );
 }
 
+int_psp CheckInsideTriangle()
+{
+// zero(x) = 1 - abs(sign(x))
+#define EQ_ZERO(SRC, DST)                    \
+    {                                        \
+        asm(                                 \
+            "vsgn.t C700, " #SRC ";"         \
+            "vabs.t C700, C700;"             \
+            "vsub.t " #DST ", C030, C700;"); \
+    }
+
+// gt_zero(x) = (1 - zero(x))*u(x)
+// u(x) = (x + abs(x)) / 2x
+// "vmax.t" requiered to avoid -inf problems
+#define GT_ZERO(SRC, ZERO_DST, GT_ZERO_DST)                      \
+    {                                                            \
+        EQ_ZERO(SRC, ZERO_DST);                                  \
+        asm(                                                     \
+            "vsub.t " #GT_ZERO_DST ", C030, " #ZERO_DST ";"      \
+                                                                 \
+            "vabs.t C700, " #SRC ";"                             \
+            "vadd.t C700, " #SRC ", C700;"                       \
+            "vadd.t C710, " #SRC ", " #SRC ";"                   \
+            "vdiv.t C720, C700, C710;"                           \
+            "vmax.t C720, C720, C020;"                           \
+                                                                 \
+            "vmul.t " #GT_ZERO_DST ", " #GT_ZERO_DST ", C720;"); \
+    }
+
+// gte_zero(x) = max{zero(x), ge(x)}
+#define GTE_ZERO(SRC, ZERO_DST, GTE_ZERO_DST)                               \
+    {                                                                       \
+        GT_ZERO(SRC, ZERO_DST, GTE_ZERO_DST);                               \
+        asm("vmax.t " #GTE_ZERO_DST ", " #ZERO_DST ", " #GTE_ZERO_DST ";"); \
+    }
+
+// Inside = (EI > 0) OR (EI = 0 AND A > 0) OR (EI = 0 AND A = 0 B >= 0)
+#define INSIDE(DST, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO) \
+    {                                                                         \
+        asm(                                                                  \
+            "vmul.t C700, " #EI_EQ_ZERO ", " #A_GT_ZERO ";"                   \
+                                                                              \
+            "vmul.t C710, " #EI_EQ_ZERO ", " #A_EQ_ZERO ";"                   \
+            "vmul.t C710, C710, " #B_GTE_ZERO ";"                             \
+                                                                              \
+            "vadd.t C720, " #EI_GT_ZERO ", C700;"                             \
+            "vadd.t C720, C720, C710;"                                        \
+                                                                              \
+            "vmul.s " #DST ", S720, S721;"                                    \
+            "vmul.s " #DST ", " #DST ", S722;");                              \
+    }
+
+    // Initialize variables in the first place for a and b. Stored in M600
+    GT_ZERO(C210, C500, C510);
+    GTE_ZERO(C200, C520, C530);
+
+    // Check first pixel
+    asm("vzero.p C700;");
+    GT_ZERO(C300, C600, C610);
+    asm("vzero.p C700;");
+    INSIDE(S303, C600, C610, C500, C510, C530);
+
+    // Second pixel
+    GT_ZERO(C310, C600, C610);
+    INSIDE(S313, C600, C610, C500, C510, C530);
+
+    // Third pixel
+    GT_ZERO(C320, C600, C610);
+    INSIDE(S323, C600, C610, C500, C510, C530);
+
+    // Fourth pixel
+    GT_ZERO(C330, C600, C610);
+    INSIDE(S333, C600, C610, C500, C510, C530);
+
+    // Gather how many pixels are inside
+    int_psp count;
+    asm(
+        "vadd.s S700, S303, S313;"
+        "vadd.s S700, S700, S323;"
+        "vadd.s S700, S700, S333;"
+
+        "vf2in.s S700, S700, 0;"
+        "sv.s S700, 0(%0)"
+        :
+        : "r"(&count)
+        :);
+
+    return count;
+
+#undef EQ_ZERO
+#undef GT_ZERO
+#undef GTE_ZERO
+}
+
 void CalculateBarycentricCoordinates()
 {
     // Clear target matrix
-    asm("vmzero.q M500;");
+    asm("vmzero.q M400;");
 
     // E0 + E1 + E2
     asm(
@@ -246,34 +287,17 @@ void CalculateBarycentricCoordinates()
 
     // Calculate weights
     asm(
-        "vdiv.q R500, R301, R700;" // U <- E1 / Sum{E}
-        "vdiv.q R501, R302, R700;" // V <- E2 / Sum{E}
+        "vdiv.q R400, R301, R700;" // U <- E1 / Sum{E}
+        "vdiv.q R401, R302, R700;" // V <- E2 / Sum{E}
 
         // W <- 1-U-V
-        "vsub.q R502, C030, R500;"
-        "vsub.q R502, R502, R501;");
-}
-
-bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
-{
-    for (size_t i{0}; i < 3; ++i)
-    {
-        float_psp fPixel{edgeFuncs[i].Evaluate(pixel)};
-        bool firstCase{fPixel > 0.0f};
-        bool secondCase{fPixel == 0.0f && edgeFuncs[i].a > 0.0f};
-        bool thirdCase{fPixel == 0.0f && edgeFuncs[i].a == 0.0f && edgeFuncs[i].b >= 0.0f};
-        if (!(firstCase || secondCase || thirdCase))
-        {
-            return false;
-        }
-    }
-
-    return true;
+        "vsub.q R402, C030, R400;"
+        "vsub.q R402, R402, R401;");
 }
 
 void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel)
 {
-    Vec3f baryCoords{BarycentricCoordinates(pixel, edgeFuncs)};
+    Vec3f baryCoords;
 
     float_psp depth{
         baryCoords.x * buffer[tri.x].position.z +
@@ -306,19 +330,6 @@ void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vecto
 
     Fragment f{x, y, depth, viewPos, normal, color, uv};
     fragments.push_back(f);
-}
-
-Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs)
-{
-    float_psp f0{edgeFuncs[0].Evaluate(pixel)};
-    float_psp f1{edgeFuncs[1].Evaluate(pixel)};
-    float_psp f2{edgeFuncs[2].Evaluate(pixel)};
-    float fSum{f0 + f1 + f2};
-
-    float_psp u{f1 / fSum};
-    float_psp v{f2 / fSum};
-    float_psp w{1.0f - u - v};
-    return Vec3f{u, v, w};
 }
 
 void InitializeVFPUForRasterization()
