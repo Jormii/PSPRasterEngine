@@ -31,8 +31,9 @@ void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buf
 void InitializeEdgeFunctions();
 Vec4i TriangleBBOX();
 void EvaluateEdgeFunction(const Vec2f pixel);
-
 void CalculateBarycentricCoordinates();
+
+Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edges);
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
 void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel);
 Vec3f BarycentricCoordinates(const Vec2f &pixel, const EdgeFunction *edgeFuncs);
@@ -74,6 +75,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
                 static_cast<float_psp>(y) + 0.5f};
 
             EvaluateEdgeFunction(pixel);
+            CalculateBarycentricCoordinates();
 
             // TODO: Remove
             Vec2f screenSpace[]{
@@ -93,15 +95,10 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
                 EdgeFunction::FromPoints(screenSpace[2], screenSpace[0])};
 
             std::cout << pixel << "\n";
-            for (int_psp i{0}; i < 3; ++i)
-            {
-                EdgeFunction &e{edges[i]};
-                std::cout << Vec3f{e.b, e.a, e.c} << "\n";
-                std::cout << e.Evaluate(pixel) << "\n";
-                std::cout << e.Evaluate(Vec2f{pixel.x + 1, pixel.y}) << "\n";
-                std::cout << e.Evaluate(Vec2f{pixel.x, pixel.y + 1}) << "\n";
-                std::cout << e.Evaluate(Vec2f{pixel.x + 1, pixel.y + 1}) << "\n";
-            }
+            std::cout << BarycentricCoordinates(pixel, edges) << "\n";
+            std::cout << BarycentricCoordinates(Vec2f{pixel.x + 1, pixel.y}, edges) << "\n";
+            std::cout << BarycentricCoordinates(Vec2f{pixel.x, pixel.y + 1}, edges) << "\n";
+            std::cout << BarycentricCoordinates(Vec2f{pixel.x + 1, pixel.y + 1}, edges) << "\n";
             std::cout << "\n";
         }
     }
@@ -239,51 +236,22 @@ void EvaluateEdgeFunction(const Vec2f pixel)
 
 void CalculateBarycentricCoordinates()
 {
-    // Clear target matrixes
-    asm(
-        "vmzero.q M300;"
-        "vmzero.q M400;"
-        "vmzero.q M500;");
+    // Clear target matrix
+    asm("vmzero.q M500;");
 
-    // E_SUM(M700) <- E0(M000) + E1(M100) + E2(M200)
+    // E0 + E1 + E2
     asm(
-        "vadd.q R700, R000, R100;"
-        "vadd.q R700, R700, R200;"
-        "vadd.q R701, R001, R101;"
-        "vadd.q R701, R701, R201;"
-        "vadd.q R702, R002, R102;"
-        "vadd.q R702, R702, R202;"
-        "vadd.q R703, R003, R103;"
-        "vadd.q R703, R703, R203;");
+        "vadd.q R700, R300, R301;"
+        "vadd.q R700, R700, R302;");
 
-    // U(M300) <- E1(M100) / E_SUM(M700)
+    // Calculate weights
     asm(
-        "vdiv.q R300, R100, R700;"
-        "vdiv.q R400, R101, R701;"
-        "vdiv.q R500, R102, R702;"
-        "vdiv.q R600, R103, R703;");
+        "vdiv.q R500, R301, R700;" // U <- E1 / Sum{E}
+        "vdiv.q R501, R302, R700;" // V <- E2 / Sum{E}
 
-    // V(M400) <- E1(M200) / E_SUM(M700)
-    asm(
-        "vdiv.q R301, R200, R700;"
-        "vdiv.q R401, R201, R701;"
-        "vdiv.q R501, R202, R702;"
-        "vdiv.q R601, R203, R703;");
-
-    // Set a 1-filled vector to later perform w = 1-u-w
-    asm(
-        "vone.q R700;");
-
-    // W(M500) <- 1(R700) - U(M300) - V(M400)
-    asm(
-        "vsub.q R302, R700, R300;"
-        "vsub.q R302, R302, R301;"
-        "vsub.q R402, R700, R400;"
-        "vsub.q R402, R402, R401;"
-        "vsub.q R502, R700, R500;"
-        "vsub.q R502, R502, R501;"
-        "vsub.q R602, R700, R600;"
-        "vsub.q R602, R602, R601;");
+        // W <- 1-U-V
+        "vsub.q R502, C030, R500;"
+        "vsub.q R502, R502, R501;");
 }
 
 bool PixelWithinTriangle(const Vec2f &pixel, const EdgeFunction *edgeFuncs)

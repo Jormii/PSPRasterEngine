@@ -26,8 +26,12 @@
  * M200 stores the edge function's variables a, b, c in a 3x3 matrix where
  *      (b, a, c, a+b)i are columns. a AND b ARE SWAPPED
  * 
+ * M300-M500 are grid-dependent
+ * 
  * M300 stores Ei(X, Y). (E0(x, y), E1(x, y), E2(x, y)) are rows
  *      (Ei(x, y), Ei(x+1, y), Ei(x, y+1), Ei(x+1, y+1)) are columns
+ * 
+ * M500 store the barycentric coordinates. (w0, w1, w2, 0) columns
  * 
  * M700 is used for auxiliary operations
  */
