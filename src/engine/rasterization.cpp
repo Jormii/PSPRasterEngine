@@ -33,6 +33,11 @@ Vec4i TriangleBBOX();
 void EvaluateEdgeFunction(const Vec2f pixel);
 int_psp CheckInsideTriangle();
 void CalculateBarycentricCoordinates();
+void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVertexData &b, const BufferVertexData &c, std::vector<Fragment> &fragments);
+void StoreScalarInFragment(const float_psp &a, const float_psp &b, const float_psp &c, const float_psp &d);
+void StoreVec2InFragment(const Vec2f &a, const Vec2f &b, const Vec2f &c, const Vec2f &d);
+void StoreVec3InFragment(const Vec3f &a, const Vec3f &b, const Vec3f &c, const Vec3f &d);
+void StoreVec4InFragment(const Vec4f &a, const Vec4f &b, const Vec4f &c, const Vec4f &d);
 
 void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel);
 
@@ -64,6 +69,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
     DebugStart(DebugIDs::BBOX);
     Vec4i bbox{TriangleBBOX()};
     DebugEnd(DebugIDs::BBOX);
+
     for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
     {
         for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
@@ -78,6 +84,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
             if (inside > 0)
             {
                 CalculateBarycentricCoordinates();
+                Interpolate(x, y, buffer[tri.x], buffer[tri.y], buffer[tri.z], fragments);
             }
         }
     }
@@ -237,6 +244,7 @@ int_psp CheckInsideTriangle()
     GT_ZERO(C210, C500, C510);
     GTE_ZERO(C200, C520, C530);
 
+    // TODO: Can likely be improved
     // Check first pixel
     asm("vzero.p C700;");
     GT_ZERO(C300, C600, C610);
@@ -295,41 +303,102 @@ void CalculateBarycentricCoordinates()
         "vsub.q R402, R402, R401;");
 }
 
-void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel)
+void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVertexData &b, const BufferVertexData &c, std::vector<Fragment> &fragments)
 {
-    Vec3f baryCoords;
+#define INTERPOLATE() asm("vmmul.q M600, M500, M400;");
 
-    float_psp depth{
-        baryCoords.x * buffer[tri.x].position.z +
-        baryCoords.y * buffer[tri.y].position.z +
-        baryCoords.z * buffer[tri.z].position.z};
+    Fragment newFragments[4];
+    newFragments[0].xScreenCoord = x;
+    newFragments[0].yScreenCoord = y;
+    newFragments[1].xScreenCoord = x + 1;
+    newFragments[1].yScreenCoord = y;
+    newFragments[2].xScreenCoord = x;
+    newFragments[2].yScreenCoord = y + 1;
+    newFragments[3].xScreenCoord = x + 1;
+    newFragments[3].yScreenCoord = y + 1;
 
-    Vec3f viewPos{Vec3f::BarycentricInterpolation(
-        buffer[tri.x].viewPos,
-        buffer[tri.y].viewPos,
-        buffer[tri.z].viewPos,
-        baryCoords)};
+    // Clear target matrix
+    asm("vmzero.q M500");
 
-    Vec3f normal{Vec3f::BarycentricInterpolation(
-        buffer[tri.x].normal,
-        buffer[tri.y].normal,
-        buffer[tri.z].normal,
-        baryCoords)};
+    // Depth
+    LOAD_SCALAR(5, 0, 0, &(a.position.z));
+    LOAD_SCALAR(5, 0, 1, &(b.position.z));
+    LOAD_SCALAR(5, 0, 2, &(c.position.z));
+    INTERPOLATE();
+    StoreScalarInFragment(newFragments[0].depth, newFragments[1].depth, newFragments[2].depth, newFragments[3].depth);
 
-    Vec4f color{Vec4f::BarycentricInterpolation(
-        buffer[tri.x].color,
-        buffer[tri.y].color,
-        buffer[tri.z].color,
-        baryCoords)};
+    // Viewpos
+    LOAD_VEC3_COL(5, 0, &(a.viewPos));
+    LOAD_VEC3_COL(5, 1, &(b.viewPos));
+    LOAD_VEC3_COL(5, 2, &(c.viewPos));
+    INTERPOLATE();
+    StoreVec3InFragment(newFragments[0].viewPos, newFragments[1].viewPos, newFragments[2].viewPos, newFragments[3].viewPos);
 
-    Vec2f uv{Vec2f::BarycentricInterpolation(
-        buffer[tri.x].uv,
-        buffer[tri.y].uv,
-        buffer[tri.z].uv,
-        baryCoords)};
+    // Normal
+    LOAD_VEC3_COL(5, 0, &(a.normal));
+    LOAD_VEC3_COL(5, 1, &(b.normal));
+    LOAD_VEC3_COL(5, 2, &(c.normal));
+    INTERPOLATE();
+    StoreVec3InFragment(newFragments[0].normal, newFragments[1].normal, newFragments[2].normal, newFragments[3].normal);
 
-    Fragment f{x, y, depth, viewPos, normal, color, uv};
-    fragments.push_back(f);
+    // Color
+    LOAD_VEC4_COL(5, 0, &(a.color));
+    LOAD_VEC4_COL(5, 1, &(b.color));
+    LOAD_VEC4_COL(5, 2, &(c.color));
+    INTERPOLATE();
+    StoreVec4InFragment(newFragments[0].color, newFragments[1].color, newFragments[2].color, newFragments[3].color);
+
+    // UV
+    LOAD_VEC2_COL_U(5, 0, &(a.uv));
+    LOAD_VEC2_COL_U(5, 1, &(a.uv));
+    LOAD_VEC2_COL_U(5, 2, &(a.uv));
+    INTERPOLATE();
+    StoreVec2InFragment(newFragments[0].uv, newFragments[1].uv, newFragments[2].uv, newFragments[3].uv);
+
+    // Store those that are within the triangle
+    float_psp VFPU_ALIGN within[4];
+    STORE_VEC4_ROW(3, 3, &within);
+    for (int_psp i{0}; i < 4; ++i)
+    {
+        if (within[i])
+        {
+            fragments.push_back(newFragments[i]);
+        }
+    }
+
+#undef INTERPOLATE
+}
+
+void StoreScalarInFragment(const float_psp &a, const float_psp &b, const float_psp &c, const float_psp &d)
+{
+    STORE_SCALAR(6, 0, 0, &a);
+    STORE_SCALAR(6, 0, 1, &b);
+    STORE_SCALAR(6, 0, 2, &c);
+    STORE_SCALAR(6, 0, 3, &d);
+}
+
+void StoreVec2InFragment(const Vec2f &a, const Vec2f &b, const Vec2f &c, const Vec2f &d)
+{
+    STORE_VEC2_COL_U(6, 0, &a);
+    STORE_VEC2_COL_U(6, 1, &b);
+    STORE_VEC2_COL_U(6, 2, &c);
+    STORE_VEC2_COL_U(6, 3, &d);
+}
+
+void StoreVec3InFragment(const Vec3f &a, const Vec3f &b, const Vec3f &c, const Vec3f &d)
+{
+    STORE_VEC3_COL(6, 0, &a);
+    STORE_VEC3_COL(6, 1, &b);
+    STORE_VEC3_COL(6, 2, &c);
+    STORE_VEC3_COL(6, 3, &d);
+}
+
+void StoreVec4InFragment(const Vec4f &a, const Vec4f &b, const Vec4f &c, const Vec4f &d)
+{
+    STORE_VEC4_COL(6, 0, &a);
+    STORE_VEC4_COL(6, 1, &b);
+    STORE_VEC4_COL(6, 2, &c);
+    STORE_VEC4_COL(6, 3, &d);
 }
 
 void InitializeVFPUForRasterization()

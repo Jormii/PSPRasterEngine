@@ -23,6 +23,15 @@
             :);                          \
     }
 
+#define STORE_SCALAR(M, R, C, PTR)       \
+    {                                    \
+        asm(                             \
+            "sv.s S" #M #C #R ", 0(%0);" \
+            :                            \
+            : "r"(PTR)                   \
+            :);                          \
+    }
+
 /***
  * VEC2 OPERATIONS
  */
@@ -40,6 +49,26 @@
 #define ZERO_VEC2_ROW_R(M, R)       \
     {                               \
         asm("vzero.p R" #M "2" #R); \
+    }
+
+#define LOAD_VEC2_COL_U(M, C, PTR)     \
+    {                                  \
+        asm(                           \
+            "lv.s S" #M #C "0, 0(%0);" \
+            "lv.s S" #M #C "1, 4(%0);" \
+            :                          \
+            : "r"(PTR)                 \
+            :);                        \
+    }
+
+#define STORE_VEC2_COL_U(M, C, PTR)    \
+    {                                  \
+        asm(                           \
+            "sv.s S" #M #C "0, 0(%0);" \
+            "sv.s S" #M #C "1, 4(%0);" \
+            :                          \
+            : "r"(PTR)                 \
+            :);                        \
     }
 
 #define LOAD_VEC2_ROW_L(M, R, PTR)        \
@@ -60,6 +89,32 @@
             :                             \
             : "r"(PTR)                    \
             :);                           \
+    }
+
+/***
+ * VEC3 OPERATIONS
+ */
+
+#define LOAD_VEC3_COL(M, C, PTR)       \
+    {                                  \
+        asm(                           \
+            "lv.s S" #M #C "0, 0(%0);" \
+            "lv.s S" #M #C "1, 4(%0);" \
+            "lv.s S" #M #C "2, 8(%0);" \
+            :                          \
+            : "r"(PTR)                 \
+            :);                        \
+    }
+
+#define STORE_VEC3_COL(M, C, PTR)      \
+    {                                  \
+        asm(                           \
+            "sv.s S" #M #C "0, 0(%0);" \
+            "sv.s S" #M #C "1, 4(%0);" \
+            "sv.s S" #M #C "2, 8(%0);" \
+            :                          \
+            : "r"(PTR)                 \
+            :);                        \
     }
 
 /***
