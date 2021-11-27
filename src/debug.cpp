@@ -31,6 +31,14 @@ void DebugInit()
     debugData[DebugIDs::UPLOAD_COORDINATES].text = "RASTER::Upload coords";
     debugData[DebugIDs::INIT_EDGES].text = "RASTER::Init edges";
     debugData[DebugIDs::BBOX].text = "RASTER::BBOX";
+    debugData[DebugIDs::VFPU_RASTERIZATION_INIT].text = "RASTER::VFPU_RASTERIZATION_INIT";
+    debugData[DebugIDs::TRIANGLE_VISIBILITY].text = "RASTER::TRIANGLE_VISIBILITY";
+    debugData[DebugIDs::RASTERIZE_TRIANGLE].text = "RASTER::RASTERIZE_TRIANGLE";
+    debugData[DebugIDs::TRIANGLE_TRAVERSAL].text = "RASTER::TRIANGLE_TRAVERSAL";
+    debugData[DebugIDs::EVALUATE_EDGE_FUNCTION].text = "RASTER::EVALUATE_EDGE_FUNCTION";
+    debugData[DebugIDs::INSIDE_TRIANGLE].text = "RASTER::INSIDE_TRIANGLE";
+    debugData[DebugIDs::BARY_COORDS].text = "RASTER::BARY_COORDS";
+    debugData[DebugIDs::INTERPOLATE].text = "RASTER::INTERPOLATE";
 #endif
 }
 

@@ -116,6 +116,7 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
     Vec4i bbox{TriangleBBOX()};
     DebugEnd(DebugIDs::BBOX);
 
+    DebugStart(DebugIDs::TRIANGLE_TRAVERSAL);
     for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
     {
         for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
@@ -124,16 +125,27 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
                 static_cast<float_psp>(x) + 0.5f,
                 static_cast<float_psp>(y) + 0.5f};
 
+            DebugStart(DebugIDs::EVALUATE_EDGE_FUNCTION);
             EvaluateEdgeFunction(pixel);
+            DebugEnd(DebugIDs::EVALUATE_EDGE_FUNCTION);
+
+            DebugStart(DebugIDs::INSIDE_TRIANGLE);
             int_psp inside{CheckInsideTriangle()};
+            DebugEnd(DebugIDs::INSIDE_TRIANGLE);
 
             if (inside > 0)
             {
+                DebugStart(DebugIDs::BARY_COORDS);
                 CalculateBarycentricCoordinates();
+                DebugEnd(DebugIDs::BARY_COORDS);
+
+                DebugStart(DebugIDs::INTERPOLATE);
                 Interpolate(x, y, buffer[tri.x], buffer[tri.y], buffer[tri.z], fragments);
+                DebugEnd(DebugIDs::INTERPOLATE);
             }
         }
     }
+    DebugEnd(DebugIDs::TRIANGLE_TRAVERSAL);
 }
 
 void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer)
@@ -391,6 +403,7 @@ void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVe
 
 void InitializeVFPUForRasterization()
 {
+    DebugStart(DebugIDs::VFPU_RASTERIZATION_INIT);
     // Set 0 and 1 vectors first
     VFPU_INST_NO_OPERANDS(VFPU_OP_V_ZERO, VFPU_V4, ZERO_VECTOR_V4);
     VFPU_INST_NO_OPERANDS(VFPU_OP_V_ONE, VFPU_V4, ONE_VECTOR_V4);
@@ -402,6 +415,7 @@ void InitializeVFPUForRasterization()
 
     // Load max width/height
     VFPU_FUN_LOAD_V2_ROW_C01(0, 3, MAX_SCREEN_VEC2);
+    DebugEnd(DebugIDs::VFPU_RASTERIZATION_INIT);
 }
 
 std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer)
@@ -410,11 +424,15 @@ std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer
     for (size_t i{0}; i < mesh.triangleCount; ++i)
     {
         const Vec3i &tri{mesh.triangles[i]};
+        DebugStart(DebugIDs::TRIANGLE_VISIBILITY);
         bool visible{TriangleIsVisible(tri, buffer)};
+        DebugEnd(DebugIDs::TRIANGLE_VISIBILITY);
 
         if (visible)
         {
+            DebugStart(DebugIDs::RASTERIZE_TRIANGLE);
             RasterizeTriangle(tri, buffer, fragments);
+            DebugEnd(DebugIDs::RASTERIZE_TRIANGLE);
         }
     }
     return fragments;
