@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "constants.hpp"
 #include "draw_buffer.hpp"
 #include "fragment.hpp"
 
@@ -39,6 +40,18 @@
  * 
  * M700 is used for auxiliary operations
  */
+
+#define GRID_SIZE 2
+
+constexpr float_psp VFPU_ALIGN GRID_SIZE_VEC4[]{GRID_SIZE, GRID_SIZE, GRID_SIZE, GRID_SIZE};
+
+constexpr float_psp HALF_SCREEN_VEC2[]{
+    0.5f * static_cast<float_psp>(PSP_WIDTH),
+    0.5f * static_cast<float_psp>(PSP_HEIGHT)};
+
+constexpr float_psp MAX_SCREEN_VEC2[]{
+    static_cast<float_psp>(PSP_WIDTH - 1.0f),
+    static_cast<float_psp>(PSP_HEIGHT - 1.0f)};
 
 void InitializeVFPUForRasterization();
 std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer);

@@ -2,7 +2,9 @@
 
 #include <cmath>
 
-#include "vfpu.hpp"
+#include "vfpu.h"
+#include "vfpu_funcs.h"
+
 #include "debug.hpp"
 #include "constants.hpp"
 #include "edge.hpp"
@@ -10,20 +12,70 @@
 #include "vec2i.hpp"
 #include "vec4i.hpp"
 
-#define GRID_SIZE 2
-#define GRID_CELLS (GRID_SIZE * GRID_SIZE)
+/**
+ * Constants
+ */
+#define ZERO_VECTOR_V4 "C020"
+#define ONE_VECTOR_V4 "C030"
+#define HALF_SCREEN_0_V2 "R000"
+#define HALF_SCREEN_1_V2 "R001"
+#define HALF_SCREEN_2_V2 "R002"
+#define HALF_SCREEN_X_V3 "C000"
+#define HALF_SCREEN_Y_V3 "C010"
+#define MAX_SCREEN_BOUNDS_V2 "R003"
 
-const Vec4f __attribute__((aligned(16))) ZERO_TO_THREE{0.0f, 1.0f, 2.0f, 3.0f};
+/**
+ * Screen coordinates
+ */
+#define SCREEN_COORDS_0_V2 "R100"
+#define SCREEN_COORDS_1_V2 "R101"
+#define SCREEN_COORDS_2_V2 "R102"
+#define SCREEN_COORDS_X_V3 "C100"
+#define SCREEN_COORDS_Y_V3 "C110"
 
-constexpr float_psp VFPU_ALIGN GRID_SIZE_VEC4[]{GRID_SIZE, GRID_SIZE, GRID_SIZE, GRID_SIZE};
+/**
+ * Edge functions
+ */
+#define E0_V4 "R200"
+#define E1_V4 "R201"
+#define E2_V4 "R202"
+#define EI_A_V3 "C210"
+#define EI_B_V3 "C200"
+#define EI_C_V3 "C220"
+#define EI_A_PLUS_B_V3 "C230"
 
-constexpr float_psp HALF_SCREEN_VEC2[]{
-    0.5f * static_cast<float_psp>(PSP_WIDTH),
-    0.5f * static_cast<float_psp>(PSP_HEIGHT)};
+/**
+ * Evaluated edge
+ */
+#define F_EI_X_Y_V3 "C300"
+#define F_EI_X_PLUS_1_Y_V3 "C310"
+#define F_EI_X_Y_PLUS_1_V3 "C320"
+#define F_EI_X_PLUS_1_Y_PLUS_1_V3 "C330"
+#define F_E0_V4 "R300"
+#define F_E1_V4 "R301"
+#define F_E2_V4 "R302"
 
-constexpr float_psp MAX_SCREEN_VEC2[]{
-    static_cast<float_psp>(PSP_WIDTH - 1.0f),
-    static_cast<float_psp>(PSP_HEIGHT - 1.0f)};
+/**
+ * Inside triangle
+ */
+#define INSIDE_TRIANGLE_V4 "R303"
+#define X_Y_INSIDE_V1 "S303"
+#define X_PLUS_1_Y_INSIDE_V1 "S313"
+#define X_Y_PLUS_1_INSIDE_V1 "S323"
+#define X_PLUS_1_Y_PLUS_1_INSIDE_V1 "S333"
+
+/**
+ * Barycentric coordinates
+ */
+#define BARYCENTRIC_MATRIX "M400"
+#define BARYCENTRIC_U_V4 "R400"
+#define BARYCENTRIC_V_V4 "R401"
+#define BARYCENTRIC_W_V4 "R402"
+
+/**
+ * Interpolation
+ */
+#define INTERPOLATION_MATRIX "M500"
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments);
@@ -34,12 +86,6 @@ void EvaluateEdgeFunction(const Vec2f pixel);
 int_psp CheckInsideTriangle();
 void CalculateBarycentricCoordinates();
 void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVertexData &b, const BufferVertexData &c, std::vector<Fragment> &fragments);
-void StoreScalarInFragment(const float_psp &a, const float_psp &b, const float_psp &c, const float_psp &d);
-void StoreVec2InFragment(const Vec2f &a, const Vec2f &b, const Vec2f &c, const Vec2f &d);
-void StoreVec3InFragment(const Vec3f &a, const Vec3f &b, const Vec3f &c, const Vec3f &d);
-void StoreVec4InFragment(const Vec4f &a, const Vec4f &b, const Vec4f &c, const Vec4f &d);
-
-void CreateFragment(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments, const EdgeFunction *edgeFuncs, int_psp x, int_psp y, const Vec2f &pixel);
 
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer)
 {
@@ -92,67 +138,60 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
 
 void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer)
 {
-    LOAD_VEC2_ROW_L(7, 0, &(buffer[tri.x].position));
-    LOAD_VEC2_ROW_L(7, 1, &(buffer[tri.y].position));
-    LOAD_VEC2_ROW_L(7, 2, &(buffer[tri.z].position));
+    VFPU_FUN_LOAD_V2_ROW_C01(7, 0, &(buffer[tri.x].position));
+    VFPU_FUN_LOAD_V2_ROW_C01(7, 1, &(buffer[tri.y].position));
+    VFPU_FUN_LOAD_V2_ROW_C01(7, 2, &(buffer[tri.z].position));
 
-    asm(
-        // Add 1
-        "vadd.t C100, C700, C030;"
-        "vadd.t C110, C710, C030;"
+    // Add 1
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, SCREEN_COORDS_X_V3, "C700", ONE_VECTOR_V4);
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, SCREEN_COORDS_Y_V3, "C710", ONE_VECTOR_V4);
 
-        // Multiply by half width/height
-        "vmul.t C100, C100, C000;"
-        "vmul.t C110, C110, C010;");
+    // Multiply by half width/height
+    VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, SCREEN_COORDS_X_V3, SCREEN_COORDS_X_V3, HALF_SCREEN_X_V3);
+    VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, SCREEN_COORDS_Y_V3, SCREEN_COORDS_Y_V3, HALF_SCREEN_Y_V3);
 }
 
 void InitializeEdgeFunctions()
 {
     // Calculate vectors => Parameters b, -a
     // b in C200, -a in C210
-    asm(
-        "vsub.p R200, R101, R100;" // A -> B
-        "vsub.p R201, R102, R101;" // B -> C
-        "vsub.p R202, R100, R102;" // C -> A
-    );
+    VFPU_INST_BINARY(VFPU_OP_V_SUB, VFPU_V2, E0_V4, SCREEN_COORDS_1_V2, SCREEN_COORDS_0_V2);
+    VFPU_INST_BINARY(VFPU_OP_V_SUB, VFPU_V2, E1_V4, SCREEN_COORDS_2_V2, SCREEN_COORDS_1_V2);
+    VFPU_INST_BINARY(VFPU_OP_V_SUB, VFPU_V2, E2_V4, SCREEN_COORDS_0_V2, SCREEN_COORDS_2_V2);
 
     // Calculate c
-    asm(
-        "vmul.t C700, C210, C100;" // -a * p.x
-        "vmul.t C710, C200, C110;" // b * p.y
-        "vsub.t C220, C700, C710;");
+    VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, "C700", EI_A_V3, SCREEN_COORDS_X_V3); // -a * p.x
+    VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, "C710", EI_B_V3, SCREEN_COORDS_Y_V3); // b * p.y
+    VFPU_INST_BINARY(VFPU_OP_V_SUB, VFPU_V3, EI_C_V3, "C700", "C710");
 
     // Negate -a
-    asm("vneg.t C210, C210;");
+    VFPU_INST_UNARY(VFPU_OP_V_NEG, VFPU_V3, EI_A_V3, EI_A_V3);
 
     // a+b
-    asm("vadd.t C230, C210, C200");
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, EI_A_PLUS_B_V3, EI_A_V3, EI_B_V3);
 }
 
 Vec4i TriangleBBOX()
 {
-    asm(
-        // Lower bound
-        "vmin.p C700, R100, R101;"
-        "vmin.p C700, C700, R102;"
+    // Lower bound
+    VFPU_INST_BINARY(VFPU_OP_V_MIN, VFPU_V2, "C700", SCREEN_COORDS_0_V2, SCREEN_COORDS_1_V2);
+    VFPU_INST_BINARY(VFPU_OP_V_MIN, VFPU_V2, "C700", "C700", SCREEN_COORDS_2_V2);
 
-        // Upper bound
-        "vmax.p C702, R100, R101;"
-        "vmax.p C702, C702, R102;");
+    // Upper bound
+    VFPU_INST_BINARY(VFPU_OP_V_MAX, VFPU_V2, "C702", SCREEN_COORDS_0_V2, SCREEN_COORDS_1_V2);
+    VFPU_INST_BINARY(VFPU_OP_V_MAX, VFPU_V2, "C702", "C702", SCREEN_COORDS_2_V2);
 
     // Fit to screen bounds
-    asm(
-        "vmax.p C700, C700, C020;" // Lower corner. C020 is the 0 vector
-        "vmin.p C702, C702, R003;" // Upper corner
-    );
+    VFPU_INST_BINARY(VFPU_OP_V_MAX, VFPU_V2, "C700", "C700", ZERO_VECTOR_V4);
+    VFPU_INST_BINARY(VFPU_OP_V_MIN, VFPU_V2, "C702", "C702", MAX_SCREEN_BOUNDS_V2);
 
     // TODO: There might be a way to perform all of these in the VFPU
     // Translate to "grid-space"
-    LOAD_VEC4_COL(7, 1, GRID_SIZE_VEC4);
-    asm("vdiv.q C700, C700, C710;"); // BBOX / GRID_SIZE
+    VFPU_INST_MEMORY(VFPU_OP_LOAD, VFPU_V4, "C710", GRID_SIZE_VEC4, 0);
+    VFPU_INST_BINARY(VFPU_OP_V_DIV, VFPU_V4, "C700", "C700", "C710"); // BBOX / GRID_SIZE
 
     Vec4f VFPU_ALIGN bboxDivGridSize;
-    STORE_VEC4_COL(7, 0, &bboxDivGridSize);
+    VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V4, "C700", &bboxDivGridSize, 0);
 
     Vec4i bbox{
         GRID_SIZE * static_cast<int_psp>(bboxDivGridSize.x),
@@ -166,146 +205,124 @@ Vec4i TriangleBBOX()
 void EvaluateEdgeFunction(const Vec2f pixel)
 {
     // Load pixel into VFPU
-    LOAD_VEC2_ROW_L(7, 0, &pixel);
-    asm(
-        // Other rows are result of adding a 0 vector
-        "vadd.p R701, R700, C020;"
-        "vadd.p R702, R700, C020;");
+    VFPU_FUN_LOAD_V2_ROW_C01(7, 0, &pixel);
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V2, "R701", "R700", ZERO_VECTOR_V4); // Other rows are "loaded" adding a 0 vector
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V2, "R702", "R700", ZERO_VECTOR_V4);
 
     // Evaluate for arg pixel
-    asm(
-        "vmul.t C720, C210, C700;" // A*X
-        "vmul.t C730, C200, C710;" // B*Y
-        "vadd.t C300, C720, C730;" // A*X + B*Y
-        "vadd.t C300, C300, C220;" // (A*X + B*Y) + c
-    );
+    VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, "C720", EI_A_V3, "C700");          // A*X
+    VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, "C730", EI_B_V3, "C710");          // B*Y
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_Y_V3, "C720", "C730");       // A*X + B*Y
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_Y_V3, F_EI_X_Y_V3, EI_C_V3); // (A*X + B*Y) + C
 
     // Add a, b and a+b to evaluate the other pixels in the grid
-    asm(
-        "vadd.t C310, C300, C210;" // (x+1, y)
-        "vadd.t C320, C300, C200;" // (x, y+1)
-        "vadd.t C330, C300, C230;" // (x+1, y+1)
-    );
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_PLUS_1_Y_V3, F_EI_X_Y_V3, EI_A_V3);               // (x+1, y)
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_Y_PLUS_1_V3, F_EI_X_Y_V3, EI_B_V3);               // (x, y+1)
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_PLUS_1_Y_PLUS_1_V3, F_EI_X_Y_V3, EI_A_PLUS_B_V3); // (x+1, y+1)
 }
 
 int_psp CheckInsideTriangle()
 {
-// zero(x) = 1 - abs(sign(x))
-#define EQ_ZERO(SRC, DST)                    \
-    {                                        \
-        asm(                                 \
-            "vsgn.t C700, " #SRC ";"         \
-            "vabs.t C700, C700;"             \
-            "vsub.t " #DST ", C030, C700;"); \
-    }
-
-// gt_zero(x) = (1 - zero(x))*u(x)
-// u(x) = (x + abs(x)) / 2x
-// "vmax.t" requiered to avoid -inf problems
-#define GT_ZERO(SRC, ZERO_DST, GT_ZERO_DST)                      \
-    {                                                            \
-        EQ_ZERO(SRC, ZERO_DST);                                  \
-        asm(                                                     \
-            "vsub.t " #GT_ZERO_DST ", C030, " #ZERO_DST ";"      \
-                                                                 \
-            "vabs.t C700, " #SRC ";"                             \
-            "vadd.t C700, " #SRC ", C700;"                       \
-            "vadd.t C710, " #SRC ", " #SRC ";"                   \
-            "vdiv.t C720, C700, C710;"                           \
-            "vmax.t C720, C720, C020;"                           \
-                                                                 \
-            "vmul.t " #GT_ZERO_DST ", " #GT_ZERO_DST ", C720;"); \
-    }
-
-// gte_zero(x) = max{zero(x), ge(x)}
-#define GTE_ZERO(SRC, ZERO_DST, GTE_ZERO_DST)                               \
-    {                                                                       \
-        GT_ZERO(SRC, ZERO_DST, GTE_ZERO_DST);                               \
-        asm("vmax.t " #GTE_ZERO_DST ", " #ZERO_DST ", " #GTE_ZERO_DST ";"); \
-    }
-
 // Inside = (EI > 0) OR (EI = 0 AND A > 0) OR (EI = 0 AND A = 0 B >= 0)
-#define INSIDE(DST, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO) \
-    {                                                                         \
-        asm(                                                                  \
-            "vmul.t C700, " #EI_EQ_ZERO ", " #A_GT_ZERO ";"                   \
-                                                                              \
-            "vmul.t C710, " #EI_EQ_ZERO ", " #A_EQ_ZERO ";"                   \
-            "vmul.t C710, C710, " #B_GTE_ZERO ";"                             \
-                                                                              \
-            "vadd.t C720, " #EI_GT_ZERO ", C700;"                             \
-            "vadd.t C720, C720, C710;"                                        \
-                                                                              \
-            "vmul.s " #DST ", S720, S721;"                                    \
-            "vmul.s " #DST ", " #DST ", S722;");                              \
+#define INSIDE(DST, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO)     \
+    {                                                                             \
+        VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, "C700", EI_EQ_ZERO, A_GT_ZERO); \
+                                                                                  \
+        VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, "C710", EI_EQ_ZERO, A_EQ_ZERO); \
+        VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V3, "C710", "C710", B_GTE_ZERO);    \
+                                                                                  \
+        VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, "C720", EI_GT_ZERO, "C700");     \
+        VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, "C720", "C720", "C710");         \
+                                                                                  \
+        VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V1, DST, "S720", "S721");           \
+        VFPU_INST_BINARY(VFPU_OP_V_MULT, VFPU_V1, DST, DST, "S722");              \
     }
 
-    // Initialize variables in the first place for a and b. Stored in M600
-    GT_ZERO(C210, C500, C510);
-    GTE_ZERO(C200, C520, C530);
+#define A_EQ_ZERO "C500"
+#define A_GT_ZERO "C510"
+#define B_EQ_ZERO "C520"
+#define B_GTE_ZERO "C530"
+#define EI_EQ_ZERO "C600"
+#define EI_GT_ZERO "C610"
+
+    // Initialize variables in the first place for a and b. Stored in M500
+    VFPU_FUN_GT_ZERO(VFPU_V3, EI_A_V3, A_EQ_ZERO, A_GT_ZERO);
+    VFPU_FUN_GTE_ZERO(VFPU_V3, EI_B_V3, B_EQ_ZERO, B_GTE_ZERO);
 
     // TODO: Can likely be improved
     // Check first pixel
-    asm("vzero.p C700;");
-    GT_ZERO(C300, C600, C610);
-    asm("vzero.p C700;");
-    INSIDE(S303, C600, C610, C500, C510, C530);
+    VFPU_FUN_GT_ZERO(VFPU_V3, F_EI_X_Y_V3, EI_EQ_ZERO, EI_GT_ZERO);
+    INSIDE(X_Y_INSIDE_V1, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO);
 
     // Second pixel
-    GT_ZERO(C310, C600, C610);
-    INSIDE(S313, C600, C610, C500, C510, C530);
+    VFPU_FUN_GT_ZERO(VFPU_V3, F_EI_X_PLUS_1_Y_V3, EI_EQ_ZERO, EI_GT_ZERO);
+    INSIDE(X_PLUS_1_Y_INSIDE_V1, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO);
 
     // Third pixel
-    GT_ZERO(C320, C600, C610);
-    INSIDE(S323, C600, C610, C500, C510, C530);
+    VFPU_FUN_GT_ZERO(VFPU_V3, F_EI_X_Y_PLUS_1_V3, EI_EQ_ZERO, EI_GT_ZERO);
+    INSIDE(X_Y_PLUS_1_INSIDE_V1, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO);
 
-    // Fourth pixel
-    GT_ZERO(C330, C600, C610);
-    INSIDE(S333, C600, C610, C500, C510, C530);
+    // Last pixel
+    VFPU_FUN_GT_ZERO(VFPU_V3, F_EI_X_PLUS_1_Y_PLUS_1_V3, EI_EQ_ZERO, EI_GT_ZERO);
+    INSIDE(X_PLUS_1_Y_PLUS_1_INSIDE_V1, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO);
 
     // Gather how many pixels are inside
-    int_psp count;
-    asm(
-        "vadd.s S700, S303, S313;"
-        "vadd.s S700, S700, S323;"
-        "vadd.s S700, S700, S333;"
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V1, "S700", X_Y_INSIDE_V1, X_PLUS_1_Y_INSIDE_V1);
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V1, "S700", "S700", X_Y_PLUS_1_INSIDE_V1);
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V1, "S700", "S700", X_PLUS_1_Y_PLUS_1_INSIDE_V1);
 
-        "vf2in.s S700, S700, 0;"
-        "sv.s S700, 0(%0)"
-        :
-        : "r"(&count)
-        :);
+    float_psp count;
+    VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V1, "S700", &count, 0);
 
-    return count;
-
-#undef EQ_ZERO
-#undef GT_ZERO
-#undef GTE_ZERO
+    return static_cast<float_psp>(count);
 }
 
 void CalculateBarycentricCoordinates()
 {
     // Clear target matrix
-    asm("vmzero.q M400;");
+    VFPU_INST_NO_OPERANDS(VFPU_OP_M_ZERO, VFPU_V4, BARYCENTRIC_MATRIX);
 
-    // E0 + E1 + E2
-    asm(
-        "vadd.q R700, R300, R301;"
-        "vadd.q R700, R700, R302;");
+    // f(E0) + f(E1) + f(E2)
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V4, "R700", F_E0_V4, F_E1_V4);
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V4, "R700", "R700", F_E2_V4);
 
     // Calculate weights
-    asm(
-        "vdiv.q R400, R301, R700;" // U <- E1 / Sum{E}
-        "vdiv.q R401, R302, R700;" // V <- E2 / Sum{E}
-
-        // W <- 1-U-V
-        "vsub.q R402, C030, R400;"
-        "vsub.q R402, R402, R401;");
+    VFPU_INST_BINARY(VFPU_OP_V_DIV, VFPU_V4, BARYCENTRIC_U_V4, F_E1_V4, "R700");                 // U <- f(E1) / Sum{f(EI)}
+    VFPU_INST_BINARY(VFPU_OP_V_DIV, VFPU_V4, BARYCENTRIC_V_V4, F_E2_V4, "R700");                 // V <- f(E2) / Sum{f(EI)}
+    VFPU_INST_BINARY(VFPU_OP_V_SUB, VFPU_V4, BARYCENTRIC_W_V4, ONE_VECTOR_V4, BARYCENTRIC_U_V4); // W <- 1-U-V
+    VFPU_INST_BINARY(VFPU_OP_V_SUB, VFPU_V4, BARYCENTRIC_W_V4, BARYCENTRIC_W_V4, BARYCENTRIC_V_V4);
 }
 
 void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVertexData &b, const BufferVertexData &c, std::vector<Fragment> &fragments)
 {
-#define INTERPOLATE() asm("vmmul.q M600, M500, M400;");
+#define INTERPOLATE()                                                                                \
+    {                                                                                                \
+        VFPU_INST_BINARY(VFPU_OP_M_MULT, VFPU_V4, "M600", INTERPOLATION_MATRIX, BARYCENTRIC_MATRIX); \
+    }
+
+#define STORE_V1(PTR_1, PTR_2, PTR_3, PTR_4)                        \
+    {                                                               \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V1, "S600", PTR_1, 0); \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V1, "S610", PTR_2, 0); \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V1, "S620", PTR_3, 0); \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V1, "S630", PTR_4, 0); \
+    }
+
+#define STORE_V4(PTR_1, PTR_2, PTR_3, PTR_4)                        \
+    {                                                               \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V4, "C600", PTR_1, 0); \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V4, "C610", PTR_2, 0); \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V4, "C620", PTR_3, 0); \
+        VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V4, "C630", PTR_4, 0); \
+    }
+
+#define STORE_OTHER_V(STORE_COL_FUN, PTR_1, PTR_2, PTR_3, PTR_4) \
+    {                                                            \
+        STORE_COL_FUN(6, 0, PTR_1);                              \
+        STORE_COL_FUN(6, 1, PTR_2);                              \
+        STORE_COL_FUN(6, 2, PTR_3);                              \
+        STORE_COL_FUN(6, 3, PTR_4);                              \
+    }
 
     Fragment newFragments[4];
     newFragments[0].xScreenCoord = x;
@@ -318,46 +335,51 @@ void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVe
     newFragments[3].yScreenCoord = y + 1;
 
     // Clear target matrix
-    asm("vmzero.q M500");
+    VFPU_INST_NO_OPERANDS(VFPU_OP_M_ZERO, VFPU_V4, INTERPOLATION_MATRIX);
 
     // Depth
-    LOAD_SCALAR(5, 0, 0, &(a.position.z));
-    LOAD_SCALAR(5, 0, 1, &(b.position.z));
-    LOAD_SCALAR(5, 0, 2, &(c.position.z));
+    VFPU_INST_MEMORY(VFPU_OP_LOAD, VFPU_V1, "S500", &(a.position.z), 0);
+    VFPU_INST_MEMORY(VFPU_OP_LOAD, VFPU_V1, "S510", &(b.position.z), 0);
+    VFPU_INST_MEMORY(VFPU_OP_LOAD, VFPU_V1, "S520", &(c.position.z), 0);
+
     INTERPOLATE();
-    StoreScalarInFragment(newFragments[0].depth, newFragments[1].depth, newFragments[2].depth, newFragments[3].depth);
+    STORE_V1(&(newFragments[0].depth), &(newFragments[1].depth), &(newFragments[2].depth), &(newFragments[3].depth));
 
     // Viewpos
-    LOAD_VEC3_COL(5, 0, &(a.viewPos));
-    LOAD_VEC3_COL(5, 1, &(b.viewPos));
-    LOAD_VEC3_COL(5, 2, &(c.viewPos));
+    VFPU_FUN_LOAD_V3_COL(5, 0, &(a.viewPos));
+    VFPU_FUN_LOAD_V3_COL(5, 1, &(b.viewPos));
+    VFPU_FUN_LOAD_V3_COL(5, 2, &(c.viewPos));
+
     INTERPOLATE();
-    StoreVec3InFragment(newFragments[0].viewPos, newFragments[1].viewPos, newFragments[2].viewPos, newFragments[3].viewPos);
+    STORE_OTHER_V(VFPU_FUN_STORE_V3_COL, &(newFragments[0].viewPos), &(newFragments[1].viewPos), &(newFragments[2].viewPos), &(newFragments[3].viewPos));
 
     // Normal
-    LOAD_VEC3_COL(5, 0, &(a.normal));
-    LOAD_VEC3_COL(5, 1, &(b.normal));
-    LOAD_VEC3_COL(5, 2, &(c.normal));
+    VFPU_FUN_LOAD_V3_COL(5, 0, &(a.normal));
+    VFPU_FUN_LOAD_V3_COL(5, 1, &(b.normal));
+    VFPU_FUN_LOAD_V3_COL(5, 2, &(c.normal));
+
     INTERPOLATE();
-    StoreVec3InFragment(newFragments[0].normal, newFragments[1].normal, newFragments[2].normal, newFragments[3].normal);
+    STORE_OTHER_V(VFPU_FUN_STORE_V3_COL, &(newFragments[0].normal), &(newFragments[1].normal), &(newFragments[2].normal), &(newFragments[3].normal));
 
     // Color
-    LOAD_VEC4_COL(5, 0, &(a.color));
-    LOAD_VEC4_COL(5, 1, &(b.color));
-    LOAD_VEC4_COL(5, 2, &(c.color));
+    VFPU_INST_MEMORY(VFPU_OP_LOAD, VFPU_V4, "C500", &(a.color), 0);
+    VFPU_INST_MEMORY(VFPU_OP_LOAD, VFPU_V4, "C510", &(b.color), 0);
+    VFPU_INST_MEMORY(VFPU_OP_LOAD, VFPU_V4, "C520", &(c.color), 0);
+
     INTERPOLATE();
-    StoreVec4InFragment(newFragments[0].color, newFragments[1].color, newFragments[2].color, newFragments[3].color);
+    STORE_V4(&(newFragments[0].color), &(newFragments[1].color), &(newFragments[2].color), &(newFragments[3].color));
 
     // UV
-    LOAD_VEC2_COL_U(5, 0, &(a.uv));
-    LOAD_VEC2_COL_U(5, 1, &(a.uv));
-    LOAD_VEC2_COL_U(5, 2, &(a.uv));
+    VFPU_FUN_LOAD_V2_COL_R01(5, 0, &(a.uv));
+    VFPU_FUN_LOAD_V2_COL_R01(5, 1, &(b.uv));
+    VFPU_FUN_LOAD_V2_COL_R01(5, 2, &(c.uv));
+
     INTERPOLATE();
-    StoreVec2InFragment(newFragments[0].uv, newFragments[1].uv, newFragments[2].uv, newFragments[3].uv);
+    STORE_OTHER_V(VFPU_FUN_STORE_V2_COL_R01, &(newFragments[0].uv), &(newFragments[1].uv), &(newFragments[2].uv), &(newFragments[3].uv))
 
     // Store those that are within the triangle
     float_psp VFPU_ALIGN within[4];
-    STORE_VEC4_ROW(3, 3, &within);
+    VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V4, INSIDE_TRIANGLE_V4, &within, 0);
     for (int_psp i{0}; i < 4; ++i)
     {
         if (within[i])
@@ -365,56 +387,21 @@ void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVe
             fragments.push_back(newFragments[i]);
         }
     }
-
-#undef INTERPOLATE
-}
-
-void StoreScalarInFragment(const float_psp &a, const float_psp &b, const float_psp &c, const float_psp &d)
-{
-    STORE_SCALAR(6, 0, 0, &a);
-    STORE_SCALAR(6, 0, 1, &b);
-    STORE_SCALAR(6, 0, 2, &c);
-    STORE_SCALAR(6, 0, 3, &d);
-}
-
-void StoreVec2InFragment(const Vec2f &a, const Vec2f &b, const Vec2f &c, const Vec2f &d)
-{
-    STORE_VEC2_COL_U(6, 0, &a);
-    STORE_VEC2_COL_U(6, 1, &b);
-    STORE_VEC2_COL_U(6, 2, &c);
-    STORE_VEC2_COL_U(6, 3, &d);
-}
-
-void StoreVec3InFragment(const Vec3f &a, const Vec3f &b, const Vec3f &c, const Vec3f &d)
-{
-    STORE_VEC3_COL(6, 0, &a);
-    STORE_VEC3_COL(6, 1, &b);
-    STORE_VEC3_COL(6, 2, &c);
-    STORE_VEC3_COL(6, 3, &d);
-}
-
-void StoreVec4InFragment(const Vec4f &a, const Vec4f &b, const Vec4f &c, const Vec4f &d)
-{
-    STORE_VEC4_COL(6, 0, &a);
-    STORE_VEC4_COL(6, 1, &b);
-    STORE_VEC4_COL(6, 2, &c);
-    STORE_VEC4_COL(6, 3, &d);
 }
 
 void InitializeVFPUForRasterization()
 {
     // Set 0 and 1 vectors first
-    asm("vzero.q C020;"
-        "vone.q C030;");
+    VFPU_INST_NO_OPERANDS(VFPU_OP_V_ZERO, VFPU_V4, ZERO_VECTOR_V4);
+    VFPU_INST_NO_OPERANDS(VFPU_OP_V_ONE, VFPU_V4, ONE_VECTOR_V4);
 
     // Load half width/height and fill the other rows by addition
-    LOAD_VEC2_ROW_L(0, 0, HALF_SCREEN_VEC2);
-    asm(
-        "vadd.p R001, R000, C020;"
-        "vadd.p R002, R000, C020;");
+    VFPU_FUN_LOAD_V2_ROW_C01(0, 0, HALF_SCREEN_VEC2);
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V2, HALF_SCREEN_1_V2, HALF_SCREEN_0_V2, ZERO_VECTOR_V4);
+    VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V2, HALF_SCREEN_2_V2, HALF_SCREEN_0_V2, ZERO_VECTOR_V4);
 
     // Load max width/height
-    LOAD_VEC2_ROW_L(0, 3, MAX_SCREEN_VEC2);
+    VFPU_FUN_LOAD_V2_ROW_C01(0, 3, MAX_SCREEN_VEC2);
 }
 
 std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer)
@@ -430,6 +417,5 @@ std::vector<Fragment> Rasterize(const Mesh &mesh, const BufferVertexData *buffer
             RasterizeTriangle(tri, buffer, fragments);
         }
     }
-
     return fragments;
 }

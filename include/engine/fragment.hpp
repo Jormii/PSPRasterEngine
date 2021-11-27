@@ -1,7 +1,7 @@
 #ifndef FRAGMENT
 #define FRAGMENT
 
-#include "vfpu.hpp"
+#include "vfpu.h"
 
 #include "types.hpp"
 #include "vec2f.hpp"
