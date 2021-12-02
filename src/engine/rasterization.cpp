@@ -80,10 +80,10 @@
 /**
  * Triangle traversal
  */
-#define JUST_TURNED 0
-#define JUST_JUMPED 1
-#define UP_DIR 0
-#define DOWN_DIR 1
+#define TRAVERSAL_NEW_LINE 0
+#define TRAVERSAL_TURN 1
+#define TRAVERSAL_UP_DIR 0
+#define TRAVERSAL_DOWN_DIR 1
 constexpr int_psp INCREMENT_INT[]{GRID_SIZE, -GRID_SIZE};
 constexpr float_psp INCREMENT_FLOAT[]{GRID_SIZE, -GRID_SIZE};
 
@@ -138,20 +138,18 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
     Vec2f pixel{
         static_cast<float_psp>(x) + 0.5f,
         previousPixelsY};
-    bool foundEmpty{false};
-    bool foundAnyToPaint{false};
-    int_psp state{JUST_TURNED};
 
-    std::cout << "Start\n";
+    bool foundAnyToPaint{false};
+    int_psp state{TRAVERSAL_TURN};
+
     while (x <= bbox.z)
     {
         EvaluateEdgeFunction(pixel);
         int_psp inside{CheckInsideTriangle()};
-        foundEmpty = inside == 0 || (y < bbox.y || y > bbox.w);
+        bool empty{inside == 0};
+        bool withinBbox{y >= bbox.y && y <= bbox.w};
 
-        std::cout << Vec2i{x, y} << "\n";
-
-        if (!foundEmpty)
+        if (!empty)
         {
             // Paint cell
             CalculateBarycentricCoordinates();
@@ -159,35 +157,49 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
 
             foundAnyToPaint = true;
         }
-        else if (state == JUST_JUMPED)
+
+        // Change states
+        bool outside{empty || !withinBbox};
+        switch (state)
         {
-            std::cout << "Turn\n";
-            // Check the other direction
-            direction = 1 - direction;
-            y = previousY;
-            pixel.y = previousPixelsY;
-            foundEmpty = false;
-            foundAnyToPaint = false;
-            state = JUST_TURNED;
-        }
-        else if (state == JUST_TURNED && foundAnyToPaint)
-        {
-            std::cout << "Jump\n";
-            // Go right
-            x += GRID_SIZE;
-            pixel.x += GRID_SIZE;
-            previousY = y;
-            previousPixelsY = pixel.y;
-            foundEmpty = false;
-            foundAnyToPaint = false;
-            state = JUST_JUMPED;
+        case TRAVERSAL_NEW_LINE:
+            if (outside)
+            {
+                // Check other direction
+                direction = 1 - direction;
+                y = previousY;
+                pixel.y = previousPixelsY;
+
+                foundAnyToPaint = false;
+                state = TRAVERSAL_TURN;
+            }
+            break;
+        case TRAVERSAL_TURN:
+            if ((empty && foundAnyToPaint) || !withinBbox)
+            {
+                // Go right
+                x += GRID_SIZE;
+                pixel.x += GRID_SIZE;
+                previousY = y;
+                previousPixelsY = pixel.y;
+
+                foundAnyToPaint = false;
+                state = TRAVERSAL_NEW_LINE;
+
+                // So y stays the same after advancing below
+                y -= INCREMENT_INT[direction];
+                pixel.y -= INCREMENT_FLOAT[direction];
+            }
+            break;
+        default:
+            std::cout << "Error: Reached invalid state during traversal\n";
+            exit(1);
         }
 
+        // Advance
         y += INCREMENT_INT[direction];
         pixel.y += INCREMENT_FLOAT[direction];
     }
-
-    std::cout << "End\n";
     DebugEnd(DebugIDs::TRIANGLE_TRAVERSAL);
 }
 
@@ -282,12 +294,12 @@ Vec2i FindStartingGrid(const Vec4i &bbox, int_psp &outDirection)
             {
                 if (topInside > bottomInside)
                 {
-                    outDirection = DOWN_DIR;
+                    outDirection = TRAVERSAL_DOWN_DIR;
                     return Vec2i{x, topY};
                 }
                 else
                 {
-                    outDirection = UP_DIR;
+                    outDirection = TRAVERSAL_UP_DIR;
                     return Vec2i{x, bottomY};
                 }
             }
