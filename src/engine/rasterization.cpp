@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "vfpu.h"
-#include "vfpu_funcs.h"
+#include "vfpu.hpp"
+#include "vfpu_funcs.hpp"
 
 #include "debug.hpp"
 #include "constants.hpp"

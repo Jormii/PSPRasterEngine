@@ -1,7 +1,7 @@
 #ifndef DRAWING_BUFFER_HPP
 #define DRAWING_BUFFER_HPP
 
-#include "vfpu.h"
+#include "vfpu.hpp"
 
 #include "types.hpp"
 #include "mesh.hpp"
