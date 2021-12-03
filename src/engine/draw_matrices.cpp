@@ -4,6 +4,8 @@
 
 void DrawMatrices::Init(const Mat4f &m, const Mat4f &v, const Mat4f &p)
 {
+    this->v = v;
+
     // Load matrixes in VFPU
     // Model
     asm(
