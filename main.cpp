@@ -2,6 +2,7 @@
 
 #include <pspctrl.h>
 #include <pspkernel.h>
+#include <psppower.h>
 #include <pspdisplay.h>
 
 #include "callbacks.hpp"
@@ -29,20 +30,28 @@ Vec4f CustomVS(const VertexData &vertexData, BufferVertexData *out)
     return vertexTransformed;
 }
 
-void CustomFS(const Fragment &fragment, FSOut &out)
+void CustomFS(const Fragment &fragment, FSOut &out, const PointLight *light, const Vec3f &lightViewPos)
 {
     out.depth = fragment.depth;
 
     float_psp dot{Vec3f::Dot(
         -fragment.viewPos.Normalized(),
         fragment.normal.Normalized())};
-    out.color = Vec4f{dot, dot, dot, 1.0f};
+    dot = (dot > 0.0f) ? dot : 0.0f;
+
+    Vec3f v{lightViewPos - fragment.viewPos};
+    float_psp d{v.Magnitude()};
+    d = (d > 0.01f) ? d : 0.01f;
+    float_psp intensity{light->r / d};
+
+    out.color = intensity * Vec4f{dot, dot, dot, 1.0f} * light->color;
 }
 
 int main()
 {
     setupCallbacks();
     InitializeContext();
+    scePowerSetClockFrequency(333, 333, 167);
 
     // Set up matrices
     float_psp angle{0.25 * M_PI};
@@ -60,32 +69,23 @@ int main()
         40.0f * (M_PI / 180),
         1.0f, 10.0f)};
 
-    SceCtrlData pad;
+    // Set up lights
+    PointLight *light{ActivateLight(0)};
+    light->position = Vec3f{3.0f, 1.0f, 0.0f};
+    light->color = Vec4f{1.0f, 0.0f, 0.0f, 1.0f};
+    light->r = 3.0f;
+
+    light = ActivateLight(1);
+    light->position = Vec3f{-3.0f, 1.0f, 1.0f};
+    light->color = Vec4f{0.0f, 1.0f, 0.0f, 1.0f};
+    light->r = 1.5f;
+
     do
     {
-        // Read input
-        sceCtrlReadBufferPositive(&pad, 1);
-        if (pad.Buttons & PSP_CTRL_CROSS)
-        {
-            break;
-        }
-
-        if (pad.Buttons & PSP_CTRL_SQUARE)
-        {
-            angle += 0.1f;
-        }
-        if (pad.Buttons & PSP_CTRL_CIRCLE)
-        {
-            angle -= 0.1;
-        }
-
+        angle += 0.1f;
         if (angle >= 2 * M_PI)
         {
             angle -= 2 * M_PI;
-        }
-        else if (angle < 0)
-        {
-            angle += 2 * M_PI;
         }
 
         // Update view matrix and matrixes

@@ -13,10 +13,10 @@ OBJS = 	$(TYPES_DIR)vec2f.o $(TYPES_DIR)vec2i.o $(TYPES_DIR)vec3f.o $(TYPES_DIR)
 		$(SOURCE_DIR)callbacks.o $(SOURCE_DIR)debug.o \
 		$(MAIN_OBJ)
 
-LIBS = -lpspgu -lpspvfpu -lstdc++ -lm
+LIBS = -lpspgu -lpsppower -lpspvfpu -lstdc++ -lm
 
 INCDIR = $(INCLUDE_DIR) $(INCLUDE_DIR)types/ $(INCLUDE_DIR)/engine $(INCLUDE_DIR)/vfpu
-CFLAGS = -G0 -Wall -O3 -D DEBUG
+CFLAGS = -G0 -Wall -O3
 CXXFLAGS = $(CFLAGS) -fno-rtti -fexceptions
 ASFLAGS = $(CFLAGS)
 

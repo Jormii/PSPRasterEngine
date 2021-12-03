@@ -5,6 +5,7 @@
 
 struct DrawMatrices
 {
+    Mat4f v;
     Mat4f mv;
     Mat4f mvp;
     Mat4f n;

@@ -19,6 +19,9 @@
 bool initialized{false};
 pspvfpu_context *vfpuContext{nullptr};
 
+bool activeLights[N_LIGHTS];
+PointLight lights[N_LIGHTS];
+
 DrawMatrices *mat{reinterpret_cast<DrawMatrices *>(SCRATCHPAD_START)};
 RGBA *displayBuffer{reinterpret_cast<RGBA *>(0x4000000)};
 #if 0
@@ -48,6 +51,12 @@ void InitializeContext()
     for (size_t i{0}; i < PSP_BUFFER_SIZE; ++i)
     {
         displayBuffer[i] = RGBA{0, 0, 0};
+    }
+
+    // Set lights to initialized
+    for (size_t i{0}; i < N_LIGHTS; ++i)
+    {
+        activeLights[i] = false;
     }
 
     std::cout << displayBuffer << "\n";
@@ -99,6 +108,17 @@ void SwapBuffers()
     sceDisplaySetFrameBuf(displayBuffer, PSP_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
 }
 
+PointLight *ActivateLight(size_t id)
+{
+    activeLights[id] = true;
+    return lights + id;
+}
+
+void DeactivateLight(size_t id)
+{
+    activeLights[id] = false;
+}
+
 void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
 {
     // Vertex shading
@@ -121,15 +141,33 @@ void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs)
 
     // Fragment shading
     DebugStart(DebugIDs::FRAGMENT_SHADING);
+
+    Vec3f lightsViewPos[N_LIGHTS];
+    for (size_t i{0}; i < N_LIGHTS; ++i)
+    {
+        if (activeLights[i])
+        {
+            lightsViewPos[i] = (mat->v * Vec4f{lights[i].position, 1.0f}).DivideByW();
+        }
+    }
+
     FSOut fsOut;
     for (const Fragment &fragment : fragments)
     {
-        fs(fragment, fsOut);
+        Vec4f color;
+        for (size_t i{0}; i < N_LIGHTS; ++i)
+        {
+            if (activeLights[i])
+            {
+                fs(fragment, fsOut, lights + i, lightsViewPos[i]);
+                color = color + fsOut.color;
+            }
+        }
 
         size_t bufferIndex{BUFFER_INDEX(fragment.xScreenCoord, fragment.yScreenCoord)};
         if (fsOut.depth < depthBuffer[bufferIndex])
         {
-            drawBuffer[bufferIndex] = RGBA::Vec4fAsRGBA(fsOut.color);
+            drawBuffer[bufferIndex] = RGBA::Vec4fAsRGBA(color);
             depthBuffer[bufferIndex] = fsOut.depth;
         }
     }

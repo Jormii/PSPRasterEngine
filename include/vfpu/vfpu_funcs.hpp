@@ -1,8 +1,8 @@
 #ifndef VFPU_COMPLEX_H
 #define VFPU_COMPLEX_H
 
-#include "vfpu.h"
-#include "vfpu_ops.h"
+#include "vfpu.hpp"
+#include "vfpu_ops.hpp"
 
 // zero(x) = 1 - abs(sign(x))
 #define VFPU_FUN_EQ_ZERO(SIZE, SRC, DST)                            \

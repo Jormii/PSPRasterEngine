@@ -18,6 +18,8 @@ DrawMatrices *Matrices();
 void ClearColorBuffer(const RGBA &color);
 void ClearDepthBuffer(float_psp depth);
 void SwapBuffers();
+PointLight *ActivateLight(size_t id);
+void DeactivateLight(size_t id);
 void Draw(const Mesh &mesh, VertexShader vs, FragmentShader fs);
 
 #endif

@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "vfpu.h"
-#include "vfpu_funcs.h"
+#include "vfpu.hpp"
+#include "vfpu_funcs.hpp"
 
 #include "debug.hpp"
 #include "constants.hpp"
@@ -77,11 +77,22 @@
  */
 #define INTERPOLATION_MATRIX "M500"
 
+/**
+ * Triangle traversal
+ */
+#define TRAVERSAL_NEW_LINE 0
+#define TRAVERSAL_TURN 1
+#define TRAVERSAL_UP_DIR 0
+#define TRAVERSAL_DOWN_DIR 1
+constexpr int_psp INCREMENT_INT[]{GRID_SIZE, -GRID_SIZE};
+constexpr float_psp INCREMENT_FLOAT[]{GRID_SIZE, -GRID_SIZE};
+
 bool TriangleIsVisible(const Vec3i &tri, const BufferVertexData *buffer);
 void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::vector<Fragment> &fragments);
 void UploadScreenCoordinatesToVFPU(const Vec3i &tri, const BufferVertexData *buffer);
 void InitializeEdgeFunctions();
 Vec4i TriangleBBOX();
+Vec2i FindStartingGrid(const Vec4i &bbox, int_psp &outDirection);
 void EvaluateEdgeFunction(const Vec2f pixel);
 int_psp CheckInsideTriangle();
 void CalculateBarycentricCoordinates();
@@ -117,33 +128,77 @@ void RasterizeTriangle(const Vec3i &tri, const BufferVertexData *buffer, std::ve
     DebugEnd(DebugIDs::BBOX);
 
     DebugStart(DebugIDs::TRIANGLE_TRAVERSAL);
-    for (int_psp y{bbox.y}; y <= bbox.w; y += GRID_SIZE)
+    int_psp direction;
+    Vec2i startingGrid{FindStartingGrid(bbox, direction)};
+
+    int_psp x{startingGrid.x};
+    int_psp y{startingGrid.y};
+    int_psp previousY{y};
+    float_psp previousPixelsY{static_cast<float_psp>(y) + 0.5f};
+    Vec2f pixel{
+        static_cast<float_psp>(x) + 0.5f,
+        previousPixelsY};
+
+    bool foundAnyToPaint{false};
+    int_psp state{TRAVERSAL_TURN};
+
+    while (x <= bbox.z)
     {
-        for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
+        EvaluateEdgeFunction(pixel);
+        int_psp inside{CheckInsideTriangle()};
+        bool empty{inside == 0};
+        bool withinBbox{y >= bbox.y && y <= bbox.w};
+
+        if (!empty)
         {
-            Vec2f pixel{
-                static_cast<float_psp>(x) + 0.5f,
-                static_cast<float_psp>(y) + 0.5f};
+            // Paint cell
+            CalculateBarycentricCoordinates();
+            Interpolate(x, y, buffer[tri.x], buffer[tri.y], buffer[tri.z], fragments);
 
-            DebugStart(DebugIDs::EVALUATE_EDGE_FUNCTION);
-            EvaluateEdgeFunction(pixel);
-            DebugEnd(DebugIDs::EVALUATE_EDGE_FUNCTION);
-
-            DebugStart(DebugIDs::INSIDE_TRIANGLE);
-            int_psp inside{CheckInsideTriangle()};
-            DebugEnd(DebugIDs::INSIDE_TRIANGLE);
-
-            if (inside > 0)
-            {
-                DebugStart(DebugIDs::BARY_COORDS);
-                CalculateBarycentricCoordinates();
-                DebugEnd(DebugIDs::BARY_COORDS);
-
-                DebugStart(DebugIDs::INTERPOLATE);
-                Interpolate(x, y, buffer[tri.x], buffer[tri.y], buffer[tri.z], fragments);
-                DebugEnd(DebugIDs::INTERPOLATE);
-            }
+            foundAnyToPaint = true;
         }
+
+        // Change states
+        bool outside{empty || !withinBbox};
+        switch (state)
+        {
+        case TRAVERSAL_NEW_LINE:
+            if (outside)
+            {
+                // Check other direction
+                direction = 1 - direction;
+                y = previousY;
+                pixel.y = previousPixelsY;
+
+                foundAnyToPaint = false;
+                state = TRAVERSAL_TURN;
+            }
+            break;
+        case TRAVERSAL_TURN:
+            if ((empty && foundAnyToPaint) || !withinBbox)
+            {
+                // Go right
+                x += GRID_SIZE;
+                pixel.x += GRID_SIZE;
+                previousY = y;
+                previousPixelsY = pixel.y;
+
+                foundAnyToPaint = false;
+                state = TRAVERSAL_NEW_LINE;
+
+                // So y stays the same after advancing below
+                y -= INCREMENT_INT[direction];
+                pixel.y -= INCREMENT_FLOAT[direction];
+            }
+            break;
+        default:
+            std::cout << "Error: Reached invalid state during traversal\n";
+            exit(1);
+        }
+
+        // Advance
+        y += INCREMENT_INT[direction];
+        pixel.y += INCREMENT_FLOAT[direction];
     }
     DebugEnd(DebugIDs::TRIANGLE_TRAVERSAL);
 }
@@ -214,8 +269,55 @@ Vec4i TriangleBBOX()
     return bbox;
 }
 
+Vec2i FindStartingGrid(const Vec4i &bbox, int_psp &outDirection)
+{
+    for (int_psp x{bbox.x}; x <= bbox.z; x += GRID_SIZE)
+    {
+        int_psp topY{bbox.w};
+        int_psp bottomY{bbox.y};
+        Vec2f topPixel{static_cast<float_psp>(x) + 0.5f,
+                       static_cast<float_psp>(topY) + 0.5f};
+        Vec2f bottomPixel{topPixel.x,
+                          static_cast<float_psp>(bottomY) + 0.5f};
+
+        while (topPixel.y >= bottomPixel.y)
+        {
+            // Evaluate top pixel
+            EvaluateEdgeFunction(topPixel);
+            int_psp topInside{CheckInsideTriangle()};
+
+            // Evaluate bottom pixel
+            EvaluateEdgeFunction(bottomPixel);
+            int_psp bottomInside(CheckInsideTriangle());
+
+            if ((topInside + bottomInside) > 0)
+            {
+                if (topInside > bottomInside)
+                {
+                    outDirection = TRAVERSAL_DOWN_DIR;
+                    return Vec2i{x, topY};
+                }
+                else
+                {
+                    outDirection = TRAVERSAL_UP_DIR;
+                    return Vec2i{x, bottomY};
+                }
+            }
+
+            topY -= GRID_SIZE;
+            topPixel.y -= GRID_SIZE;
+            bottomY += GRID_SIZE;
+            bottomPixel.y += GRID_SIZE;
+        }
+    }
+
+    std::cout << "ERROR: Couldn't find an starting grid\n";
+    exit(0);
+}
+
 void EvaluateEdgeFunction(const Vec2f pixel)
 {
+    DebugStart(DebugIDs::EVALUATE_EDGE_FUNCTION);
     // Load pixel into VFPU
     VFPU_FUN_LOAD_V2_ROW_C01(7, 0, &pixel);
     VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V2, "R701", "R700", ZERO_VECTOR_V4); // Other rows are "loaded" adding a 0 vector
@@ -231,10 +333,12 @@ void EvaluateEdgeFunction(const Vec2f pixel)
     VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_PLUS_1_Y_V3, F_EI_X_Y_V3, EI_A_V3);               // (x+1, y)
     VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_Y_PLUS_1_V3, F_EI_X_Y_V3, EI_B_V3);               // (x, y+1)
     VFPU_INST_BINARY(VFPU_OP_V_ADD, VFPU_V3, F_EI_X_PLUS_1_Y_PLUS_1_V3, F_EI_X_Y_V3, EI_A_PLUS_B_V3); // (x+1, y+1)
+    DebugEnd(DebugIDs::EVALUATE_EDGE_FUNCTION);
 }
 
 int_psp CheckInsideTriangle()
 {
+    DebugStart(DebugIDs::INSIDE_TRIANGLE);
 // Inside = (EI > 0) OR (EI = 0 AND A > 0) OR (EI = 0 AND A = 0 B >= 0)
 #define INSIDE(DST, EI_EQ_ZERO, EI_GT_ZERO, A_EQ_ZERO, A_GT_ZERO, B_GTE_ZERO)     \
     {                                                                             \
@@ -286,6 +390,7 @@ int_psp CheckInsideTriangle()
     float_psp count;
     VFPU_INST_MEMORY(VFPU_OP_STORE, VFPU_V1, "S700", &count, 0);
 
+    DebugEnd(DebugIDs::INSIDE_TRIANGLE);
     return static_cast<float_psp>(count);
 }
 
@@ -307,6 +412,7 @@ void CalculateBarycentricCoordinates()
 
 void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVertexData &b, const BufferVertexData &c, std::vector<Fragment> &fragments)
 {
+    DebugStart(DebugIDs::INTERPOLATE);
 #define INTERPOLATE()                                                                                \
     {                                                                                                \
         VFPU_INST_BINARY(VFPU_OP_M_MULT, VFPU_V4, "M600", INTERPOLATION_MATRIX, BARYCENTRIC_MATRIX); \
@@ -399,6 +505,7 @@ void Interpolate(int_psp x, int_psp y, const BufferVertexData &a, const BufferVe
             fragments.push_back(newFragments[i]);
         }
     }
+    DebugEnd(DebugIDs::INTERPOLATE);
 }
 
 void InitializeVFPUForRasterization()
