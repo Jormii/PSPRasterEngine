@@ -16,7 +16,7 @@ The whole pipeline of the program goes as follows: Vertex shader -> Backface cul
 ![Program sample](https://i.imgur.com/AyTd9Y6.png)
 
 ## Problems found
-- PSP's display and draw buffer's memory addressed aren't uncached. Writing to them was extremely slow.
+- PSP's display and draw buffer's memory addresses lie in non-cachable space. Writing to them was extremely slow.
 - Rasterization is a huge bottleneck even though the process uses the VFPU almost entirely. The reason for the bottleneck must be another like cache misses.
 - All in all, the program struggles to reach 20 fps rendering only a cube and a plane.
 
