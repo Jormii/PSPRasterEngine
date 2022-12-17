@@ -26,3 +26,16 @@ the following aspects are left to implement:
 - Other types of lights. Only point lights are provided.
 - Bump mapping.
 - Shadows and occlusions.
+
+## Bibliography
+### Books
+- Real-Time Rendering.
+- Real-Time Shadows.
+
+### Papers
+- "A Parallel Algorithm for Polygon Rasterization". Pineda, Juan.
+- "On the Hardware Implementation of Triangle Traversal Algorithms for Graphics Processing". Royer del Barrio, Pablo et al.
+
+### Others
+- [An Optimized Triangle Rasterizer](https://www.digipen.edu/sites/default/files/public/docs/theses/salem-haykal-digipen-master-of-science-in-computer-science-thesis-an-optimized-triangle-rasterizer.pdf).
+- [Software Rasterization Algorithms for Filling Triangles](http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html).
