@@ -1,5 +1,7 @@
 #include <cmath>
+#include <stdio.h>
 
+#include <pspiofilemgr.h>
 #include <pspctrl.h>
 #include <pspkernel.h>
 #include <psppower.h>
@@ -10,7 +12,9 @@
 #include "debug.hpp"
 #include "engine.hpp"
 #include "utils.hpp"
+#include "t.hpp"
 
+//#include "./Sample Textures/kass.hpp"
 #include "./Sample Meshes/plane.hpp"
 #include "./Sample Meshes/cube.hpp"
 
@@ -34,17 +38,13 @@ void CustomFS(const Fragment &fragment, FSOut &out, const PointLight *light, con
 {
     out.depth = fragment.depth;
 
-    float_psp dot{Vec3f::Dot(
-        -fragment.viewPos.Normalized(),
-        fragment.normal.Normalized())};
-    dot = (dot > 0.0f) ? dot : 0.0f;
-
     Vec3f v{lightViewPos - fragment.viewPos};
     float_psp d{v.Magnitude()};
     d = (d > 0.01f) ? d : 0.01f;
     float_psp intensity{light->r / d};
 
-    out.color = intensity * Vec4f{dot, dot, dot, 1.0f} * light->color;
+    out.color = intensity * light->color;
+    // out.color = intensity * kassTexture.fetch(fragment.uv) * light->color;
 }
 
 int main()
@@ -52,6 +52,18 @@ int main()
     setupCallbacks();
     InitializeContext();
     scePowerSetClockFrequency(333, 333, 167);
+
+    for (int i=0; i < 10; ++i) {
+        Result double_res = double_if_even_result(i);
+
+        printf("Errno: %d\n", (int)double_res.err_code);
+        
+        if (double_res.ok()) {
+            printf("x: %d, 2x: %d\n", i, double_res.value);
+        }
+    }
+    
+    printf("%ld\n", __cplusplus);
 
     // Set up matrices
     float_psp angle{0.25 * M_PI};
@@ -75,10 +87,12 @@ int main()
     light->color = Vec4f{1.0f, 0.0f, 0.0f, 1.0f};
     light->r = 3.0f;
 
+#if 0
     light = ActivateLight(1);
     light->position = Vec3f{-3.0f, 1.0f, 1.0f};
     light->color = Vec4f{0.0f, 1.0f, 0.0f, 1.0f};
     light->r = 1.5f;
+#endif
 
     do
     {
